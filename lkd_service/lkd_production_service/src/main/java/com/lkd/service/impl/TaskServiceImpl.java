@@ -6,13 +6,11 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.common.base.Strings;
 import com.lkd.common.VMSystem;
 import com.lkd.dao.TaskDao;
-import com.lkd.entity.TaskDetailsEntity;
 import com.lkd.entity.TaskEntity;
 import com.lkd.entity.TaskStatusTypeEntity;
 import com.lkd.exception.LogicException;
 import com.lkd.feign.UserService;
 import com.lkd.feign.VMService;
-import com.lkd.http.vo.CancelTaskViewModel;
 import com.lkd.http.vo.TaskViewModel;
 import com.lkd.service.TaskDetailsService;
 import com.lkd.service.TaskService;
@@ -21,16 +19,15 @@ import com.lkd.vo.Pager;
 import com.lkd.vo.UserVO;
 import com.lkd.vo.VmVO;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Slf4j
@@ -97,6 +94,50 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao,TaskEntity> implements 
         return statusTypeService.list(qw);
     }
 
+    /**
+     * 创建工单
+     * @param taskViewModel
+     * @return
+     */
+    @Override
+    public boolean create(TaskViewModel taskViewModel) {
+        //调用售货机微服务中的方法
+        VmVO vmInfo = vmService.getVMInfo(taskViewModel.getInnerCode());
+        //调用用户微服务中的方法
+        UserVO user = userService.getUser(taskViewModel.getUserId());
+        if (Objects.isNull(vmInfo) || Objects.isNull(user)){
+            throw new LogicException("售货机/用户不存在");
+        }
+
+        //插入工单数据
+        TaskEntity taskEntity = getEntity(taskViewModel, vmInfo, user);
+        this.save(taskEntity);
+        return Boolean.TRUE;
+    }
+
+    /**
+     * 填充工单的属性
+     * @param taskViewModel
+     * @param vmInfo
+     * @param user
+     * @return
+     */
+    private TaskEntity getEntity(TaskViewModel taskViewModel, VmVO vmInfo, UserVO user) {
+        TaskEntity taskEntity = new TaskEntity();
+        taskEntity.setTaskCode(generateTaskCode());
+        taskEntity.setTaskStatus(VMSystem.TASK_STATUS_CREATE);
+        taskEntity.setCreateType(taskViewModel.getCreateType());
+        taskEntity.setInnerCode(taskViewModel.getInnerCode());
+        taskEntity.setRegionId(vmInfo.getRegionId());
+        taskEntity.setUserId(taskViewModel.getUserId());
+        taskEntity.setUserName(user.getUserName());
+        taskEntity.setDesc(taskViewModel.getDesc());
+        taskEntity.setProductTypeId(taskViewModel.getProductType());
+        //todo:  AssignorId  maybe  null
+        taskEntity.setAssignorId(taskViewModel.getAssignorId());
+        taskEntity.setAddr(vmInfo.getNodeAddr());
+        return taskEntity;
+    }
 
 
     /**

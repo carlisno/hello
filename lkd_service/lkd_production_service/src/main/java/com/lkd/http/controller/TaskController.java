@@ -88,5 +88,14 @@ public class TaskController extends  BaseController{
         return taskDetailsService.getByTaskId(taskId);
     }
 
-
+    /**
+     * 完成创建工单
+     * @param taskViewModel
+     * @return
+     */
+    @PostMapping("/create")
+    public boolean create(@RequestBody TaskViewModel taskViewModel){
+        taskViewModel.setAssignorId(getUserId());
+        return taskService.create(taskViewModel);
+    }
 }

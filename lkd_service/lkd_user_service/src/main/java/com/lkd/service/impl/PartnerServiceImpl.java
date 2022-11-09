@@ -35,17 +35,20 @@ public class PartnerServiceImpl extends ServiceImpl<PartnerDao, PartnerEntity> i
 
     @Override
     public LoginResp login(LoginReq req) throws IOException {
+        //1.校验验证码是否合法
         LoginResp resp = new LoginResp();
         resp.setSuccess(false);
         String code = redisTemplate.opsForValue().get(req.getClientToken());
         if(Strings.isNullOrEmpty(code)){
-            resp.setMsg("验证码错误");
+            resp.setMsg("验证码为空");
             return resp;
         }
         if(!req.getCode().equals(code)){
             resp.setMsg("验证码错误");
             return resp;
         }
+
+        //2.校验合作商账号是否合法
         QueryWrapper<PartnerEntity> qw = new QueryWrapper<>();
         qw.lambda()
                 .eq(PartnerEntity::getAccount,req.getAccount());

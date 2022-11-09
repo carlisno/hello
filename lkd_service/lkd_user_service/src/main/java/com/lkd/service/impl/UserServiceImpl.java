@@ -86,12 +86,21 @@ public class UserServiceImpl extends ServiceImpl<UserDao,UserEntity> implements 
 
     @Override
     public LoginResp login(LoginReq req) throws IOException {
-        if(req.getLoginType() == VMSystem.LOGIN_ADMIN){
-            return this.adminLogin(req);
-        }else if(req.getLoginType() == VMSystem.LOGIN_EMP){
-            return this.empLogin(req);
-        }else if(req.getLoginType() == VMSystem.LOGIN_PARTNER){
-            return partnerService.login(req);
+        //todo:need switch
+//        if(req.getLoginType()==VMSystem.LOGIN_ADMIN){
+//            return this.adminLogin(req);
+//        }else if(req.getLoginType()==(VMSystem.LOGIN_EMP)){
+//            return this.empLogin(req);
+//        }else if(req.getLoginType().equals(VMSystem.LOGIN_PARTNER)){
+//            return partnerService.login(req);
+//        }
+        switch (req.getLoginType()){
+            case 0:
+                return this.adminLogin(req);
+            case 1:
+                return this.empLogin(req);
+            case 2:
+                return this.login(req);
         }
         LoginResp resp = new LoginResp();
         resp.setSuccess(false);
@@ -105,14 +114,14 @@ public class UserServiceImpl extends ServiceImpl<UserDao,UserEntity> implements 
     @Override
     public void sendCode(String mobile){
         //非空校验
-        if(Strings.isNullOrEmpty(mobile)) return;
+        if(Strings.isNullOrEmpty(mobile)){return;}
 
         //查询用户表中是否存在该手机号
         LambdaQueryWrapper<UserEntity> wrapper = new LambdaQueryWrapper<>();
         wrapper
                 .eq(UserEntity::getMobile,mobile);
-        if(this.count(wrapper)<=0) return;  //如果不存在，直接返回
-        if(redisTemplate.opsForValue().get(mobile) != null) return;  //避免5分钟内重复发送
+        if(this.count(wrapper)<=0){return;}   //如果不存在，直接返回
+        if(redisTemplate.opsForValue().get(mobile) != null){return; }  //避免5分钟内重复发送
         //生成5位短信验证码
         StringBuilder sbCode = new StringBuilder();
         Stream
@@ -186,21 +195,25 @@ public class UserServiceImpl extends ServiceImpl<UserDao,UserEntity> implements 
      * @throws IOException
      */
     private LoginResp adminLogin(LoginReq req) throws IOException {
+        //1.获取验证码
         LoginResp resp = new LoginResp();
         resp.setSuccess(false);
         String code =redisTemplate.boundValueOps(req.getClientToken()).get();
+        //2.针对验证码进行校验
         if(Strings.isNullOrEmpty(code)){
-            resp.setMsg("验证码错误");
+            resp.setMsg("验证码为空");
             return resp;
         }
         if(!req.getCode().equals(code)){
             resp.setMsg("验证码错误");
             return resp;
         }
+        //3.查询用户信息
         QueryWrapper<UserEntity> qw = new QueryWrapper<>();
         qw.lambda()
                 .eq(UserEntity::getLoginName,req.getLoginName());
         UserEntity userEntity = this.getOne(qw);
+        //4.检验用户信息
         if(userEntity == null){
             resp.setMsg("账户名或密码错误");
             return resp;
@@ -245,11 +258,12 @@ public class UserServiceImpl extends ServiceImpl<UserDao,UserEntity> implements 
      * @throws IOException
      */
     private LoginResp empLogin(LoginReq req) throws IOException {
+        //1.校验验证码是否正确
         LoginResp resp = new LoginResp();
         resp.setSuccess(false);
         String code =redisTemplate.boundValueOps(req.getMobile()).get();
         if(Strings.isNullOrEmpty(code)){
-            resp.setMsg("验证码错误");
+            resp.setMsg("验证码为空");
             return resp;
         }
         if(!req.getCode().equals(code)){
@@ -257,6 +271,7 @@ public class UserServiceImpl extends ServiceImpl<UserDao,UserEntity> implements 
             return resp;
         }
 
+        //2.检验手机号是否存在
         QueryWrapper<UserEntity> qw = new QueryWrapper<>();
         qw.lambda()
                 .eq(UserEntity::getMobile, req.getMobile());
@@ -265,6 +280,8 @@ public class UserServiceImpl extends ServiceImpl<UserDao,UserEntity> implements 
             resp.setMsg("不存在该账户");
             return resp;
         }
+
+        //3.组装返回数据
         return okResp( userEntity,VMSystem.LOGIN_EMP );
     }
 

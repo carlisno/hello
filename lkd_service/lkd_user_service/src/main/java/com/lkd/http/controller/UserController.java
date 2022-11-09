@@ -148,10 +148,29 @@ public class UserController {
      * @param httpServletResponse
      */
     @GetMapping("/imageCode/{clientToken}")
-    public void getImageCode(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse,@PathVariable String clientToken) throws IOException {
+    public void getImageCode(HttpServletRequest httpServletRequest,
+                             HttpServletResponse httpServletResponse,
+                             @PathVariable String clientToken) throws IOException {
+        //1.通过kaptcha获取验证码
+        String createText = getImageCode(httpServletResponse);
+
+        //2.将验证码存入redis  2分钟超时
+        redisTemplate.boundValueOps(clientToken).set(createText,120, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 获取图片验证码
+     * @param httpServletResponse mvc中的组件
+     * @return 验证码
+     * @throws IOException
+     */
+    private String getImageCode(HttpServletResponse httpServletResponse) throws IOException {
         ByteArrayOutputStream jpegOutputStream = new ByteArrayOutputStream();
-        String createText = kaptcha.createText();//生成随机字母+数字(4位)
-        BufferedImage challenge = kaptcha.createImage(createText);//根据文本构建图片
+        //生成随机字母+数字(4位)
+        String createText = kaptcha.createText();
+        //根据文本构建图片
+        BufferedImage challenge = kaptcha.createImage(createText);
+
         ImageIO.write(challenge, "jpg", jpegOutputStream);
         byte[] captchaChallengeAsJpeg  = jpegOutputStream.toByteArray();
         httpServletResponse.setContentType("image/jpeg");
@@ -160,11 +179,8 @@ public class UserController {
         responseOutputStream.write(captchaChallengeAsJpeg);
         responseOutputStream.flush();
         responseOutputStream.close();
-        //将验证码存入redis  2分钟超时
-        redisTemplate.boundValueOps(clientToken).set(createText,120, TimeUnit.SECONDS);
+        return createText;
     }
-
-
 
 
     /**

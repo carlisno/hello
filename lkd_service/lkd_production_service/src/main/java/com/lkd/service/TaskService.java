@@ -37,5 +37,10 @@ public interface TaskService extends IService<TaskEntity> {
      */
     List<TaskStatusTypeEntity> getAllStatus();
 
-
+    /**
+     * 创建工单
+     * @param taskViewModel
+     * @return
+     */
+    boolean create(TaskViewModel taskViewModel);
 }
