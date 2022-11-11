@@ -6,11 +6,13 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.common.base.Strings;
 import com.lkd.common.VMSystem;
 import com.lkd.dao.TaskDao;
+import com.lkd.entity.TaskDetailsEntity;
 import com.lkd.entity.TaskEntity;
 import com.lkd.entity.TaskStatusTypeEntity;
 import com.lkd.exception.LogicException;
 import com.lkd.feign.UserService;
 import com.lkd.feign.VMService;
+import com.lkd.http.vo.TaskDetailsViewModel;
 import com.lkd.http.vo.TaskViewModel;
 import com.lkd.service.TaskDetailsService;
 import com.lkd.service.TaskService;
@@ -19,15 +21,18 @@ import com.lkd.vo.Pager;
 import com.lkd.vo.UserVO;
 import com.lkd.vo.VmVO;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -100,6 +105,7 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao,TaskEntity> implements 
      * @return
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean create(TaskViewModel taskViewModel) {
         //调用售货机微服务中的方法
         VmVO vmInfo = vmService.getVMInfo(taskViewModel.getInnerCode());
@@ -112,7 +118,37 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao,TaskEntity> implements 
         //插入工单数据
         TaskEntity taskEntity = getEntity(taskViewModel, vmInfo, user);
         this.save(taskEntity);
+
+        //2.如果是补货工单,需要插入工单详情表的数据
+        if(taskViewModel.getProductType() == VMSystem.TASK_TYPE_SUPPLY){
+            insertTaskDetailData(taskViewModel, taskEntity);
+        }
+
         return Boolean.TRUE;
+    }
+
+    /**
+     * 插入工单详情
+     * @param taskViewModel 入参
+     * @param taskEntity 工单表对象
+     */
+    private void insertTaskDetailData(TaskViewModel taskViewModel, TaskEntity taskEntity) {
+        List<TaskDetailsViewModel> details = taskViewModel.getDetails();
+        //第一种实现方式,遍历循环,进行插入操作
+        details.stream().forEach(each->{
+            TaskDetailsEntity taskDetailsEntity = new TaskDetailsEntity();
+            BeanUtils.copyProperties(each,taskDetailsEntity);
+            taskDetailsEntity.setTaskId(taskEntity.getTaskId());
+            taskDetailsService.save(taskDetailsEntity);
+        });
+
+        //第二种实现方式,需要插入工单详情数据
+        List<TaskDetailsEntity> collect = details.stream().map(each->{
+            TaskDetailsEntity taskDetailsEntity = new TaskDetailsEntity();
+            BeanUtils.copyProperties(each,taskDetailsEntity);
+            taskDetailsEntity.setTaskId(taskEntity.getTaskId());
+            return taskDetailsEntity;
+        }).collect(Collectors.toList());
     }
 
     /**

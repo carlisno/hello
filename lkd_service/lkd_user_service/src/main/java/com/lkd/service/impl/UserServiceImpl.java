@@ -2,14 +2,17 @@ package com.lkd.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.common.base.Strings;
 import com.lkd.common.VMSystem;
+import com.lkd.config.LoginStrategyConfig;
 import com.lkd.dao.UserDao;
 import com.lkd.entity.UserEntity;
 import com.lkd.http.view.TokenObject;
 import com.lkd.http.vo.LoginReq;
 import com.lkd.http.vo.LoginResp;
+import com.lkd.service.LoginStrategyService;
 import com.lkd.service.PartnerService;
 import com.lkd.service.UserService;
 import com.lkd.sms.SmsSender;
@@ -20,12 +23,14 @@ import com.lkd.vo.UserVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -58,8 +63,8 @@ public class UserServiceImpl extends ServiceImpl<UserDao,UserEntity> implements 
 
     @Override
     public Pager<UserEntity> findPage(long pageIndex, long pageSize, String userName,Integer roleId,Boolean isRepair) {
-        com.baomidou.mybatisplus.extension.plugins.pagination.Page<UserEntity> page =
-                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(pageIndex,pageSize);
+        Page<UserEntity> page =
+                new Page<>(pageIndex,pageSize);
 
         LambdaQueryWrapper<UserEntity> wrapper = new LambdaQueryWrapper<>();
         if(!Strings.isNullOrEmpty(userName)){
@@ -84,24 +89,18 @@ public class UserServiceImpl extends ServiceImpl<UserDao,UserEntity> implements 
         return Pager.build(page);
     }
 
+    @Autowired
+    private LoginStrategyConfig loginStrategyConfig;
     @Override
     public LoginResp login(LoginReq req) throws IOException {
-        //todo:need switch
-//        if(req.getLoginType()==VMSystem.LOGIN_ADMIN){
-//            return this.adminLogin(req);
-//        }else if(req.getLoginType()==(VMSystem.LOGIN_EMP)){
-//            return this.empLogin(req);
-//        }else if(req.getLoginType().equals(VMSystem.LOGIN_PARTNER)){
-//            return partnerService.login(req);
-//        }
-        switch (req.getLoginType()){
-            case 0:
-                return this.adminLogin(req);
-            case 1:
-                return this.empLogin(req);
-            case 2:
-                return this.login(req);
+
+        //策略模式实现登录功能
+        LoginStrategyService loginStrategyByLoginType =
+                loginStrategyConfig.getLoginStrategyByLoginType(req.getLoginType());
+        if (Objects.nonNull(loginStrategyByLoginType)){
+            return loginStrategyByLoginType.processLogic(req);
         }
+
         LoginResp resp = new LoginResp();
         resp.setSuccess(false);
         resp.setMsg("不存在该账户");
