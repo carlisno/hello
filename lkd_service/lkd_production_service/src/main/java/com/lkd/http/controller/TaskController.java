@@ -110,6 +110,12 @@ public class TaskController extends  BaseController{
         return taskService.acceptTask(taskId,userId);
     }
 
+    /**
+     * 取消工单
+     * @param taskId
+     * @param cancelTaskViewModel
+     * @return
+     */
     @PostMapping("/cancel/{taskId}")
     public Boolean cancel(@PathVariable long taskId,
                           @RequestBody CancelTaskViewModel cancelTaskViewModel){
@@ -118,4 +124,13 @@ public class TaskController extends  BaseController{
         return taskService.cancelTask(taskId,cancelTaskViewModel);
     }
 
+    /**
+     * 完成过工单
+     * @param taskId
+     * @return
+     */
+    @GetMapping("complete/{taskId}")
+    public Boolean complete(@PathVariable long taskId){
+        return taskService.complete(taskId,getUserId());
+    }
 }

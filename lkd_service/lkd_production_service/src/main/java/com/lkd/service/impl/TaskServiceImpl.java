@@ -183,6 +183,28 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao,TaskEntity> implements 
     }
 
     /**
+     * 完成工单
+     * @param taskId 工单id
+     * @param userId 接受人id
+     * @return
+     */
+    @Override
+    public Boolean complete(long taskId, Integer userId) {
+        //更改工单状态
+        TaskEntity byId = getById(taskId);
+        if(!byId.getTaskStatus().equals(VMSystem.TASK_STATUS_PROGRESS)){
+            throw new LogicException("当前工单不是进行中的状态,不能接受");
+        }
+        if (!Objects.equals(userId,byId.getUserId())){
+            throw new LogicException("当前工单的执行人不是您,请勿再次操作");
+        }
+        byId.setTaskStatus(VMSystem.TASK_STATUS_FINISH);
+
+        updateById(byId);
+        return Boolean.TRUE;
+    }
+
+    /**
      *
      * @param taskViewModel
      * @return

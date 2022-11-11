@@ -59,4 +59,12 @@ public interface TaskService extends IService<TaskEntity> {
      * @return
      */
     Boolean cancelTask(long taskId, CancelTaskViewModel cancelTaskViewModel);
+
+    /**
+     * 完成工单
+     * @param taskId 工单id
+     * @param userId 接受人id
+     * @return
+     */
+    Boolean complete(long taskId, Integer userId);
 }
