@@ -119,8 +119,10 @@ public class UserServiceImpl extends ServiceImpl<UserDao,UserEntity> implements 
         LambdaQueryWrapper<UserEntity> wrapper = new LambdaQueryWrapper<>();
         wrapper
                 .eq(UserEntity::getMobile,mobile);
-        if(this.count(wrapper)<=0){return;}   //如果不存在，直接返回
-        if(redisTemplate.opsForValue().get(mobile) != null){return; }  //避免5分钟内重复发送
+        //如果不存在，直接返回
+        if(this.count(wrapper)<=0){return;}
+        //避免5分钟内重复发送
+        if(redisTemplate.opsForValue().get(mobile) != null){return; }
         //生成5位短信验证码
         StringBuilder sbCode = new StringBuilder();
         Stream

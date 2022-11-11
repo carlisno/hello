@@ -141,14 +141,13 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao,TaskEntity> implements 
             taskDetailsEntity.setTaskId(taskEntity.getTaskId());
             taskDetailsService.save(taskDetailsEntity);
         });
-
-        //第二种实现方式,需要插入工单详情数据
-        List<TaskDetailsEntity> collect = details.stream().map(each->{
-            TaskDetailsEntity taskDetailsEntity = new TaskDetailsEntity();
-            BeanUtils.copyProperties(each,taskDetailsEntity);
-            taskDetailsEntity.setTaskId(taskEntity.getTaskId());
-            return taskDetailsEntity;
-        }).collect(Collectors.toList());
+//        //第二种实现方式,需要插入工单详情数据
+//        List<TaskDetailsEntity> collect = details.stream().map(each->{
+//            TaskDetailsEntity taskDetailsEntity = new TaskDetailsEntity();
+//            BeanUtils.copyProperties(each,taskDetailsEntity);
+//            taskDetailsEntity.setTaskId(taskEntity.getTaskId());
+//            return taskDetailsEntity;
+//        }).collect(Collectors.toList());
     }
 
     /**
