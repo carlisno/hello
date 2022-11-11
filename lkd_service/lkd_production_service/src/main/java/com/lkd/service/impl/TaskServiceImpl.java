@@ -107,6 +107,7 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao,TaskEntity> implements 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean create(TaskViewModel taskViewModel) {
+        //1.填充工单数据
         //调用售货机微服务中的方法
         VmVO vmInfo = vmService.getVMInfo(taskViewModel.getInnerCode());
         //调用用户微服务中的方法
@@ -115,16 +116,61 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao,TaskEntity> implements 
             throw new LogicException("售货机/用户不存在");
         }
 
+        //2.检验售货机的状态
+        checkVmStatus(taskViewModel, vmInfo);
+
+        //3.校验同一台售货机是否有未完成的桶类型的工单
+        if (getEntityQueryWrapper(taskViewModel)){
+            throw new LogicException("同一台售货机下,存在未完成的售货机工单");
+        }
+
         //插入工单数据
         TaskEntity taskEntity = getEntity(taskViewModel, vmInfo, user);
         this.save(taskEntity);
 
-        //2.如果是补货工单,需要插入工单详情表的数据
+        //4.如果是补货工单,需要插入工单详情表的数据
         if(taskViewModel.getProductType() == VMSystem.TASK_TYPE_SUPPLY){
             insertTaskDetailData(taskViewModel, taskEntity);
         }
 
         return Boolean.TRUE;
+    }
+
+    /**
+     *
+     * @param taskViewModel
+     * @return
+     */
+    private Boolean getEntityQueryWrapper(TaskViewModel taskViewModel) {
+        QueryWrapper<TaskEntity> taskEntityQueryWrapper = new QueryWrapper<>();
+        taskEntityQueryWrapper.lambda().select(TaskEntity::getTaskId)
+                .eq(TaskEntity::getInnerCode, taskViewModel.getInnerCode())
+                .eq(TaskEntity::getProductTypeId, taskViewModel.getProductType())
+                .lt(TaskEntity::getTaskStatus,VMSystem.TASK_STATUS_PROGRESS);
+        return this.count(taskEntityQueryWrapper)>0;
+    }
+
+    /**
+     * 校验售货机状态
+     * @param taskViewModel 工单创建入参
+     * @param vmInfo 售货机信息
+     */
+    private void checkVmStatus(TaskViewModel taskViewModel, VmVO vmInfo) {
+        if (taskViewModel.getProductType() == VMSystem.TASK_TYPE_DEPLOY
+                && vmInfo.getStatus() == VMSystem.VM_STATUS_RUNNING
+        ){
+            throw new LogicException("当前售货机已经是运营状态,请勿投放");
+        }
+        if (taskViewModel.getProductType() == VMSystem.TASK_TYPE_SUPPLY
+                && vmInfo.getStatus() != VMSystem.VM_STATUS_RUNNING
+        ){
+            throw new LogicException("当前售货机不是运营状态,请勿投放");
+        }
+        if (taskViewModel.getProductType() == VMSystem.TASK_TYPE_REVOKE
+                && vmInfo.getStatus() != VMSystem.VM_STATUS_RUNNING
+        ){
+            throw new LogicException("当前售货机不是运营状态,请勿撤机");
+        }
     }
 
     /**
