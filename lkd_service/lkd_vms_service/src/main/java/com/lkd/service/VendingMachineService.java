@@ -87,4 +87,5 @@ public interface VendingMachineService extends IService<VendingMachineEntity> {
      */
     VendingMachineEntity findByClientId(String clientId);
 
+    void supply(SupplyContract completeContract);
 }

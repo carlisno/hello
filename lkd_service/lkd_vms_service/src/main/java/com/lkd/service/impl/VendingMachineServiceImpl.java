@@ -9,6 +9,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.lkd.common.VMSystem;
 
+import com.lkd.contract.SupplyChannel;
 import com.lkd.contract.SupplyContract;
 
 import com.lkd.dao.VendingMachineDao;
@@ -214,6 +215,35 @@ public class VendingMachineServiceImpl extends ServiceImpl<VendingMachineDao,Ven
         QueryWrapper<VendingMachineEntity> qw = new QueryWrapper<>();
         qw.lambda().eq( VendingMachineEntity::getClientId ,clientId );
         return this.getOne(qw);
+    }
+
+    @Override
+    public void supply(SupplyContract completeContract) {
+        //1.更新售货机上一次时间
+        UpdateWrapper<VendingMachineEntity> wrapper = new UpdateWrapper<>();
+        wrapper.lambda()
+                .eq(VendingMachineEntity::getInnerCode,completeContract.getInnerCode())
+                .set(VendingMachineEntity::getLastSupplyTime,LocalDateTime.now());
+        update(wrapper);
+        //2.更新货道信息
+        List<ChannelEntity> channelesByInnerCode =
+                channelService.getChannelesByInnerCode(completeContract.getInnerCode());
+
+        List<SupplyChannel> supplyData = completeContract.getSupplyData();
+        Map<String, SupplyChannel> collect =
+                supplyData.stream().collect(Collectors.toMap(SupplyChannel::getChannelId, each -> each));
+
+        channelesByInnerCode.forEach(each->{
+
+            if (each.getSkuId()!=0) {
+                SupplyChannel supplyChannel = collect.get(each.getChannelCode());
+                //修改当前的库存和时间
+                each.setCurrentCapacity(each.getCurrentCapacity() + supplyChannel.getCapacity());
+                each.setLastSupplyTime(LocalDateTime.now());
+                channelService.updateById(each);
+            }
+        });
+
     }
 
 
