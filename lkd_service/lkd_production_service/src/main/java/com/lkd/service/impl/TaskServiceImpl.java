@@ -12,6 +12,7 @@ import com.lkd.entity.TaskStatusTypeEntity;
 import com.lkd.exception.LogicException;
 import com.lkd.feign.UserService;
 import com.lkd.feign.VMService;
+import com.lkd.http.vo.CancelTaskViewModel;
 import com.lkd.http.vo.TaskDetailsViewModel;
 import com.lkd.http.vo.TaskViewModel;
 import com.lkd.service.TaskDetailsService;
@@ -133,6 +134,51 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao,TaskEntity> implements 
             insertTaskDetailData(taskViewModel, taskEntity);
         }
 
+        return Boolean.TRUE;
+    }
+    /**
+     * 接受工单
+     * @param taskId 工单id
+     * @param userId 当前登录人id
+     * @return
+     */
+    @Override
+    public Boolean acceptTask(Long taskId,Integer userId) {
+        //更改工单状态
+        TaskEntity byId = getById(taskId);
+        if(!byId.getTaskStatus().equals(VMSystem.TASK_STATUS_CREATE)){
+            throw new LogicException("当前工单不是待处理状态,不能接受");
+        }
+        if (!Objects.equals(userId,byId.getUserId())){
+            throw new LogicException("当前工单的执行人不是您,请勿再次操作");
+        }
+        byId.setTaskStatus(VMSystem.TASK_STATUS_PROGRESS);
+
+        updateById(byId);
+        return Boolean.TRUE;
+    }
+    /**
+     * 取消工单
+     * @param taskId 工单id
+     * @param cancelTaskViewModel 描述
+     * @return
+     */
+    @Override
+    public Boolean cancelTask(long taskId, CancelTaskViewModel cancelTaskViewModel) {
+        TaskEntity taskEntity = getById(taskId);
+        if (taskEntity.getTaskStatus().equals(VMSystem.TASK_STATUS_CANCEL)
+            || taskEntity.getTaskStatus().equals(VMSystem.TASK_STATUS_FINISH)){
+            throw new LogicException("当前工单已经结束,请勿再此操作");
+        }
+        if (!cancelTaskViewModel.getUserId().equals(taskEntity.getUserId())
+        && !cancelTaskViewModel.getUserId().equals(taskEntity.getAssignorId())){
+            throw new LogicException("当前工单已经结束,请勿再此操作");
+        }
+
+        taskEntity.setTaskStatus(VMSystem.TASK_STATUS_CANCEL);
+        taskEntity.setDesc(cancelTaskViewModel.getDesc());
+
+        updateById(taskEntity);
         return Boolean.TRUE;
     }
 

@@ -11,4 +11,5 @@ public class CancelTaskViewModel {
 
     private String desc;//拒绝理由
 
+    private Integer userId;
 }

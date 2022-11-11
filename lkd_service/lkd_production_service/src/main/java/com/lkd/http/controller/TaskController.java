@@ -98,4 +98,24 @@ public class TaskController extends  BaseController{
         taskViewModel.setAssignorId(getUserId());
         return taskService.create(taskViewModel);
     }
+
+    /**
+     * 接受工单
+     * @param taskId 工单id
+     * @return
+     */
+    @GetMapping("/accept/{taskId}")
+    public Boolean accept(@PathVariable long taskId){
+        Integer userId = getUserId();
+        return taskService.acceptTask(taskId,userId);
+    }
+
+    @PostMapping("/cancel/{taskId}")
+    public Boolean cancel(@PathVariable long taskId,
+                          @RequestBody CancelTaskViewModel cancelTaskViewModel){
+        Integer userId = getUserId();
+        cancelTaskViewModel.setUserId(userId);
+        return taskService.cancelTask(taskId,cancelTaskViewModel);
+    }
+
 }
