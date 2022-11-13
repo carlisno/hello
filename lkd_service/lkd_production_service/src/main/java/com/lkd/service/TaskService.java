@@ -67,4 +67,12 @@ public interface TaskService extends IService<TaskEntity> {
      * @return
      */
     Boolean complete(long taskId, Integer userId);
+
+    /**
+     * 获取最少工单用户
+     * @param region 区域id
+     * @Parm isSupply ture 运营工单 false 运维工单
+     * @return 用户id if get nothing,return null
+     */
+    Integer getLeastUser(Long region,Boolean isSupply);
 }

@@ -34,12 +34,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -143,6 +146,8 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao, TaskEntity> implements
             insertTaskDetailData(taskViewModel, taskEntity);
         }
 
+        //5.把用户人(执行人)的分数加1
+        updateZSetScore(user,1);
         return Boolean.TRUE;
     }
 
@@ -192,7 +197,24 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao, TaskEntity> implements
         taskEntity.setDesc(cancelTaskViewModel.getDesc());
 
         updateById(taskEntity);
+
+        //把用户人(执行人)的分数加1
+        UserVO user = userService.getUser(taskEntity.getUserId());
+        updateZSetScore(user,-1);
         return Boolean.TRUE;
+    }
+
+    /**
+     * 更新分数
+     * @param user 用户信息
+     * @param score 操作的分数
+     */
+    private void updateZSetScore(UserVO user,Integer score) {
+        String redisKey = VMSystem.REGION_TASK_KEY_PREF
+                + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+                + "." + user.getRegionId()
+                + "." + user.getRoleCode();
+        redisTemplate.opsForZSet().incrementScore(redisKey,user.getUserId(),score);
     }
 
     /**
@@ -227,6 +249,31 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao, TaskEntity> implements
         }
         
         return Boolean.TRUE;
+    }
+
+    /**
+     * 获取最少工单用户
+     * @param region 区域id
+     * @Parm isSupply ture 运营工单 false 运维工单
+     * @return 用户id if get nothing,return null
+     */
+    @Override
+    public Integer getLeastUser(Long region,Boolean isSupply) {
+        String roleCode =VMSystem.USER_OPS_ROLE;
+        if (!isSupply){
+            roleCode = VMSystem.USER_SUPPLY_ROLE;
+        }
+
+        String redisKey = VMSystem.REGION_TASK_KEY_PREF
+                + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+                + "." + region
+                + "." + roleCode;
+        //范围
+        Set<Object> range = redisTemplate.opsForZSet().range(redisKey, 0, 0);
+        if (CollectionUtils.isEmpty(range)){
+            return null;
+        }
+        return (Integer) new ArrayList<>(range).get(0);
     }
 
     /**

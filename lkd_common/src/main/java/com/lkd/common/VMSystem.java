@@ -121,6 +121,30 @@ public class VMSystem {
      *  区域工单统计前缀
      */
     public static final String REGION_TASK_KEY_PREF = "region.task.";
+    /**
+     * 管理员角色
+     */
+    public static final String ADMIN_ROLE = "1001";
+    /**
+     * 运维人员角色
+     */
+    public static final String USER_OPS_ROLE = "1002";
+    /**
+     * 运营人员角色
+     */
+    public static final String USER_SUPPLY_ROLE = "1003";
+    /**
+     * 手动创建工单类型
+     */
+    public static final int HAND_CREATE_TYPE = 1;
+    /**
+     * 手动创建工单类型
+     */
+    public static final int AUTO_CREATE_TYPE = 0;
+    /**
+     * 系统自动创建工单的人
+     */
+    public static final int SYSTEM_AUTO_CREATE_TYPE = 0;
 
 
 }
