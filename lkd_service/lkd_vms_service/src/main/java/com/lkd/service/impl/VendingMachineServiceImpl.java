@@ -5,15 +5,18 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.lkd.common.VMSystem;
 
+import com.lkd.config.TopicConfig;
 import com.lkd.contract.SupplyChannel;
 import com.lkd.contract.SupplyContract;
 
 import com.lkd.dao.VendingMachineDao;
 
+import com.lkd.emq.MqttProducer;
 import com.lkd.entity.*;
 import com.lkd.exception.LogicException;
 import com.lkd.http.vo.CreateVMReq;
@@ -28,12 +31,10 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,6 +49,9 @@ public class VendingMachineServiceImpl extends ServiceImpl<VendingMachineDao,Ven
 
     @Autowired
     private VmTypeService vmTypeService;
+
+    @Autowired
+    private MqttProducer mqttProducer;
 
     @Override
     @Transactional(rollbackFor = {Exception.class})
@@ -69,7 +73,6 @@ public class VendingMachineServiceImpl extends ServiceImpl<VendingMachineDao,Ven
         createChannel(vendingMachineEntity);
         return true;
     }
-
 
     /**
      * 创建货道
@@ -99,8 +102,10 @@ public class VendingMachineServiceImpl extends ServiceImpl<VendingMachineDao,Ven
     @Override
     public boolean update(Long id, Long nodeId) {
         VendingMachineEntity vm = this.getById(id);
-        if(vm.getVmStatus() == VMSystem.VM_STATUS_RUNNING)
+        if(vm.getVmStatus().equals(VMSystem.VM_STATUS_RUNNING)){
             throw new LogicException("改设备正在运营");
+        }
+
         NodeEntity nodeEntity = nodeService.getById(nodeId);
         BeanUtils.copyProperties( nodeEntity,vm );
         return this.updateById(vm);
@@ -217,6 +222,10 @@ public class VendingMachineServiceImpl extends ServiceImpl<VendingMachineDao,Ven
         return this.getOne(qw);
     }
 
+    /**
+     * 执行补货逻辑
+     * @param completeContract 补货协议
+     */
     @Override
     public void supply(SupplyContract completeContract) {
         //1.更新售货机上一次时间
@@ -244,6 +253,42 @@ public class VendingMachineServiceImpl extends ServiceImpl<VendingMachineDao,Ven
             }
         });
 
+    }
+
+    @Override
+    public void computeAndSendMsg(VendingMachineEntity entity) {
+
+        try {
+            //1.获取当前售货机的所有货道信息
+            List<ChannelEntity> channelEntities =
+                    channelService.getChannelesByInnerCode(entity.getInnerCode());
+
+            //2.判断货道是否缺货,获得需要补货的售货机的补货信息
+            List<SupplyChannel> collect = channelEntities.stream().filter(each ->
+                    each.getCurrentCapacity() < each.getMaxCapacity() && each.getSkuId() != 0
+            ).map(channelEntity -> {
+                SupplyChannel supplyChannel = new SupplyChannel();
+                supplyChannel.setChannelId(channelEntity.getChannelCode());
+                supplyChannel.setCapacity(channelEntity.getMaxCapacity() - channelEntity.getCurrentCapacity());
+                supplyChannel.setSkuId(channelEntity.getSkuId());
+                supplyChannel.setSkuName(channelEntity.getSku().getSkuName());
+                supplyChannel.setSkuImage(channelEntity.getSku().getSkuImage());
+                return supplyChannel;
+            }).collect(Collectors.toList());
+            //2.1判断需要补货的机器是否为空
+            if (CollectionUtils.isEmpty(collect)){
+                log.info("当前售货机不缺货,当前售货机的编码为:{}",entity.getInnerCode());
+                return;
+            }
+
+            //3.组装消息
+            SupplyContract supplyContract = new SupplyContract();
+            supplyContract.setInnerCode(entity.getInnerCode());
+            supplyContract.setSupplyData(collect);
+            mqttProducer.send(TopicConfig.TASK_SUPPLY_TOPIC,2,supplyContract);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
     }
 
 

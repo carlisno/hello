@@ -87,5 +87,15 @@ public interface VendingMachineService extends IService<VendingMachineEntity> {
      */
     VendingMachineEntity findByClientId(String clientId);
 
+    /**
+     * 执行补货逻辑
+     * @param completeContract 补货协议
+     */
     void supply(SupplyContract completeContract);
+
+    /**
+     * 自动创建补货消息
+     * @param entity 售货机信息
+     */
+    void computeAndSendMsg(VendingMachineEntity entity);
 }

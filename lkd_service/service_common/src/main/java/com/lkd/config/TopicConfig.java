@@ -42,7 +42,7 @@ public class TopicConfig {
     }
 
     /**
-     * 通知出货主题
+     * 自动创建补货工单消息主题
      */
     public final static String TASK_SUPPLY_TOPIC = "server/task/supply";
 
