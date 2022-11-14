@@ -18,9 +18,12 @@ public interface OrderService extends IService<OrderEntity> {
      */
     OrderEntity getByOrderNo(String orderNo);
 
-
-
-
+    /**
+     * 初始化订单
+     * @param payVO 支付请求对象
+     * @return 订单对象
+     */
+    OrderEntity createOrder(PayVO payVO);
 
 
 }

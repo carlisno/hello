@@ -160,8 +160,12 @@ public class VendingMachineServiceImpl extends ServiceImpl<VendingMachineDao,Ven
         VendingMachineEntity vm = this.getOne(queryWrapper);
         VmVO vmVO=new VmVO();
         BeanUtils.copyProperties(vm,vmVO);
-        vmVO.setNodeAddr(vm.getNode().getAddr());//地址
-        vmVO.setNodeName(vm.getNode().getName());//名称
+        //地址
+        vmVO.setNodeAddr(vm.getNode().getAddr());
+        //名称
+        vmVO.setNodeName(vm.getNode().getName());
+        vmVO.setRegionName(vm.getRegion().getName());
+        vmVO.setBusinessName(vm.getNode().getBusinessType().getName());
         return vmVO;
     }
 

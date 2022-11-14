@@ -13,7 +13,8 @@ import com.lkd.contract.OrderCheck;
 import com.lkd.contract.VendoutContract;
 import com.lkd.contract.VendoutData;
 import com.lkd.dao.OrderDao;
-import com.lkd.vo.PayVO;
+import com.lkd.feign.UserService;
+import com.lkd.vo.*;
 import com.lkd.emq.MqttProducer;
 import com.lkd.entity.OrderEntity;
 import com.lkd.exception.LogicException;
@@ -21,10 +22,6 @@ import com.lkd.feign.VMService;
 import com.lkd.service.OrderService;
 import com.lkd.utils.DistributedLock;
 import com.lkd.utils.JsonUtil;
-import com.lkd.vo.OrderVO;
-import com.lkd.vo.Pager;
-import com.lkd.vo.SkuVO;
-import com.lkd.vo.VmVO;
 import lombok.extern.slf4j.Slf4j;
 
 import org.elasticsearch.action.search.SearchRequest;
@@ -49,6 +46,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -59,12 +58,63 @@ import java.util.stream.Collectors;
 @Slf4j
 public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> implements OrderService {
 
+    @Autowired
+    private VMService vmService;
+    @Autowired
+    private UserService userService;
+
     @Override
     public OrderEntity getByOrderNo(String orderNo) {
         QueryWrapper<OrderEntity> qw = new QueryWrapper<>();
         qw.lambda()
                 .eq(OrderEntity::getOrderNo,orderNo);
         return this.getOne(qw);
+    }
+
+    @Override
+    public OrderEntity createOrder(PayVO payVO) {
+
+        Boolean aBoolean = vmService.hasCapacity(payVO.getInnerCode(), Long.valueOf(payVO.getSkuId()));
+        if (!aBoolean){
+            throw new LogicException("当前商品无库存,请勿下单!");
+        }
+        OrderEntity orderEntity = fillOrderInfo(payVO);
+        return orderEntity;
+    }
+
+    /**
+     * 填充订单信息
+     * @param payVO 前端支付对象
+     * @return 订单对象
+     */
+    private OrderEntity fillOrderInfo(PayVO payVO) {
+        OrderEntity orderEntity = new OrderEntity();
+        orderEntity.setOrderNo(payVO.getInnerCode()+System.nanoTime());
+        orderEntity.setInnerCode(payVO.getInnerCode());
+
+        VmVO vmInfo = vmService.getVMInfo(payVO.getInnerCode());
+        BeanUtils.copyProperties(vmInfo,orderEntity);
+        orderEntity.setAddr(vmInfo.getNodeAddr());
+
+        orderEntity.setSkuId(Long.valueOf(payVO.getSkuId()));
+        SkuVO sku = vmService.getSku(payVO.getSkuId());
+        BeanUtils.copyProperties(sku,orderEntity);
+
+        orderEntity.setStatus(VMSystem.ORDER_STATUS_CREATE);
+        orderEntity.setAmount(sku.getPrice());
+        //微信支付类型
+        orderEntity.setPayType("2");
+        orderEntity.setPayStatus(VMSystem.PAY_STATUS_NOPAY);
+        orderEntity.setOpenId(payVO.getOpenId());
+        //合作商的分成金额,分成*商品价格/100
+        PartnerVO partner = userService.getPartner(vmInfo.getOwnerId());
+        //精度问题
+        BigDecimal multiply = new BigDecimal(partner.getRatio()).multiply(new BigDecimal(sku.getPrice()));
+        BigDecimal divide = multiply.divide(new BigDecimal(100), 0, RoundingMode.HALF_UP);
+        orderEntity.setBill(divide.intValue());
+
+        this.save(orderEntity);
+        return orderEntity;
     }
 
 }

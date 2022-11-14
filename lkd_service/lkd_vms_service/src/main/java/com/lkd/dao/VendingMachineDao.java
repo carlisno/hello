@@ -11,13 +11,13 @@ import org.apache.ibatis.annotations.*;
 @Mapper
 public interface VendingMachineDao extends BaseMapper<VendingMachineEntity> {
 
-    @Results(id = "vmMapper",value = {
-            @Result(property = "vmType",column = "vm_type"),
-            @Result(property = "type",column = "vm_type",one = @One(select = "com.lkd.dao.VmTypeDao.selectById")),
-            @Result(property = "nodeId",column = "node_id"),
-            @Result(property = "node",column = "node_id",one = @One(select = "com.lkd.dao.NodeDao.getById")),
-            @Result(property = "regionId",column = "region_id"),
-            @Result(property = "region",column = "region_id",one = @One(select = "com.lkd.dao.RegionDao.selectById"))
+    @Results(id = "vmMapper", value = {
+            @Result(property = "vmType", column = "vm_type"),
+            @Result(property = "type", column = "vm_type", one = @One(select = "com.lkd.dao.VmTypeDao.selectById")),
+            @Result(property = "nodeId", column = "node_id"),
+            @Result(property = "node", column = "node_id", one = @One(select = "com.lkd.dao.NodeDao.getById")),
+            @Result(property = "regionId", column = "region_id"),
+            @Result(property = "region", column = "region_id", one = @One(select = "com.lkd.dao.RegionDao.selectById"))
     })
     @Select("select * from tb_vending_machine where inner_code=#{innerCode} limit 1")
     VendingMachineEntity findByInnerCode(String innerCode);
@@ -25,8 +25,6 @@ public interface VendingMachineDao extends BaseMapper<VendingMachineEntity> {
 
     @Select("select IFNULL(COUNT(1),0) from tb_vending_machine where node_id=#{nodeId}")
     long getCountByNodeId(long nodeId);
-
-
 
 
 }

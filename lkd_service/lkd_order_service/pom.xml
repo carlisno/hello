@@ -23,7 +23,12 @@
             <artifactId>spring-boot-configuration-processor</artifactId>
             <optional>true</optional>
         </dependency>
-
+        <!--微信支付-->
+        <dependency>
+            <groupId>com.github</groupId>
+            <artifactId>wxpay_plus</artifactId>
+            <version>1.0.0</version>
+        </dependency>
         <dependency>
             <groupId>org.freemarker</groupId>
             <artifactId>freemarker</artifactId>

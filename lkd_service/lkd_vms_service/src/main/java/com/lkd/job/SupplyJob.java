@@ -46,7 +46,6 @@ public class SupplyJob {
 //        //当前分片的索引
 //        int index = shardingVO.getIndex();
 //
-//
 //        QueryWrapper<VendingMachineEntity> wrapper = new QueryWrapper<>();
 //        wrapper.lambda()
 //                .eq(VendingMachineEntity::getVmStatus, VMSystem.VM_STATUS_RUNNING)
