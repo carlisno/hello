@@ -31,7 +31,7 @@ public class OrderController {
     }
 
     @PostMapping("/requestPay")
-    public Map<String,String> weixinPay(@RequestBody PayVO payVO){
+    public Map<String,String> requestPay(@RequestBody PayVO payVO){
 
         return orderService.weixinPay(payVO);
     }

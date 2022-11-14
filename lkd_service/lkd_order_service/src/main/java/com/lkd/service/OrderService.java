@@ -25,5 +25,9 @@ public interface OrderService extends IService<OrderEntity> {
      */
     OrderEntity createOrder(PayVO payVO);
 
-
+    /**
+     * 发送出货消息
+     * @param orderEntity 订单对象
+     */
+    void vendOut(OrderEntity orderEntity);
 }

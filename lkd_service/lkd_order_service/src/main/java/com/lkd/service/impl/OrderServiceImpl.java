@@ -62,6 +62,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
     private VMService vmService;
     @Autowired
     private UserService userService;
+    @Autowired
+    private MqttProducer mqttProducer;
 
     @Override
     public OrderEntity getByOrderNo(String orderNo) {
@@ -80,6 +82,26 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         }
         OrderEntity orderEntity = fillOrderInfo(payVO);
         return orderEntity;
+    }
+
+    /**
+     * 发送出货消息
+     * @param orderEntity 订单对象
+     */
+    @Override
+    public void vendOut(OrderEntity orderEntity) {
+
+        try {
+            VendoutContract vendoutContract = new VendoutContract();
+            vendoutContract.setInnerCode(orderEntity.getInnerCode());
+            VendoutData vendoutData = new VendoutData();
+            vendoutData.setOrderNo(orderEntity.getOrderNo());
+            vendoutData.setSkuId(orderEntity.getSkuId());
+            vendoutContract.setVendoutData(vendoutData);
+            mqttProducer.send(TopicConfig.VMS_VEND_OUT_TOPIC,2,vendoutContract);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
     }
 
     /**

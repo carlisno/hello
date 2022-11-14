@@ -8,7 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-
+/**
+ * 服务熔断   服务降级
+ */
 @Component
 @Slf4j
 public class VmServiceFallbackFactory implements FallbackFactory<VMService> {

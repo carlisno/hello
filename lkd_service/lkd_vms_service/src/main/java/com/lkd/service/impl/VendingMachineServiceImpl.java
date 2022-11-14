@@ -14,6 +14,7 @@ import com.lkd.config.TopicConfig;
 import com.lkd.contract.SupplyChannel;
 import com.lkd.contract.SupplyContract;
 
+import com.lkd.contract.VendoutContract;
 import com.lkd.dao.VendingMachineDao;
 
 import com.lkd.emq.MqttProducer;
@@ -293,6 +294,32 @@ public class VendingMachineServiceImpl extends ServiceImpl<VendingMachineDao,Ven
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 处理出货逻辑
+     * @param vendoutContract 通知出货协议
+     */
+    @Override
+    public void vendOut(VendoutContract vendoutContract) {
+        List<ChannelEntity> channelesByInnerCode = channelService.getChannelesByInnerCode(vendoutContract.getInnerCode());
+
+        //定位到扣减的商品和对应的货道
+        Optional<ChannelEntity> first = channelesByInnerCode.stream()
+                .filter(each ->each.getCurrentCapacity()>0
+                        && each.getSkuId() == vendoutContract.getVendoutData().getSkuId())
+                //findFirst()返回第一个匹配的数据
+                .findFirst();
+        if (first.isPresent()){
+            ChannelEntity channelEntity = first.get();
+
+            channelEntity.setCurrentCapacity(channelEntity.getCurrentCapacity()-1);
+            channelService.updateById(channelEntity);
+            return;
+        }
+
+        throw new LogicException("当前货道无库存");
+        //todo:发出信息给具体的售货机
     }
 
 

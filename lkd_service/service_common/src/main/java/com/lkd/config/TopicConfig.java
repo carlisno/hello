@@ -25,7 +25,7 @@ public class TopicConfig {
     /**
      * 通知出货主题
      */
-    public final static String VMS_VENDOUT_TOPIC = "server/vms/vendout";
+    public final static String VMS_VEND_OUT_TOPIC = "server/vms/vendout";
 
     /**
      * 出货结果主题（终端->服务端）

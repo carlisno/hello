@@ -1,5 +1,6 @@
 package com.lkd.feign;
 
+import com.lkd.feign.fallback.OrderServiceFallbackFactory;
 import com.lkd.feign.fallback.VmServiceFallbackFactory;
 import com.lkd.vo.PayVO;
 
@@ -12,7 +13,7 @@ import java.util.Map;
 /**
  * 订单微服务
  */
-@FeignClient(value = "order-service",fallbackFactory = VmServiceFallbackFactory.class)
+@FeignClient(value = "order-service",fallbackFactory = OrderServiceFallbackFactory.class)
 public interface OrderService {
 
     /**

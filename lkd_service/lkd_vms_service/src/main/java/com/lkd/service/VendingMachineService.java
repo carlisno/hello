@@ -98,4 +98,10 @@ public interface VendingMachineService extends IService<VendingMachineEntity> {
      * @param entity 售货机信息
      */
     void computeAndSendMsg(VendingMachineEntity entity);
+
+    /**
+     * 处理出货逻辑
+     * @param vendoutContract 通知出货协议
+     */
+    void vendOut(VendoutContract vendoutContract);
 }
