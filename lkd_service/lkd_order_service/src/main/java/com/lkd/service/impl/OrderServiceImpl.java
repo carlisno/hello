@@ -64,12 +64,16 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
     private UserService userService;
     @Autowired
     private MqttProducer mqttProducer;
+    @Autowired
+    private ConsulConfig consulConfig;
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     @Override
     public OrderEntity getByOrderNo(String orderNo) {
         QueryWrapper<OrderEntity> qw = new QueryWrapper<>();
         qw.lambda()
-                .eq(OrderEntity::getOrderNo,orderNo);
+                .eq(OrderEntity::getOrderNo, orderNo);
         return this.getOne(qw);
     }
 
@@ -77,15 +81,29 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
     public OrderEntity createOrder(PayVO payVO) {
 
         Boolean aBoolean = vmService.hasCapacity(payVO.getInnerCode(), Long.valueOf(payVO.getSkuId()));
-        if (!aBoolean){
+        if (!aBoolean) {
             throw new LogicException("当前商品无库存,请勿下单!");
         }
-        OrderEntity orderEntity = fillOrderInfo(payVO);
-        return orderEntity;
+        //加锁
+        DistributedLock lock = new DistributedLock(
+                consulConfig.getConsulRegisterHost(),
+                consulConfig.getConsulRegisterPort());
+        DistributedLock.LockContext lockContext = lock.getLock(payVO.getInnerCode() + "_" + payVO.getSkuId(), 60);
+
+        if (!lockContext.isGetLock()) {
+            throw new LogicException("机器出货中请稍后再试");
+        }
+
+        //存入redis后是为了释放锁
+        redisTemplate.boundValueOps(
+                VMSystem.VM_LOCK_KEY_PREF + payVO.getInnerCode() + "_" + payVO.getSkuId())
+                .set(lockContext.getSession(), Duration.ofSeconds(60));
+        return fillOrderInfo(payVO);
     }
 
     /**
      * 发送出货消息
+     *
      * @param orderEntity 订单对象
      */
     @Override
@@ -98,7 +116,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
             vendoutData.setOrderNo(orderEntity.getOrderNo());
             vendoutData.setSkuId(orderEntity.getSkuId());
             vendoutContract.setVendoutData(vendoutData);
-            mqttProducer.send(TopicConfig.VMS_VEND_OUT_TOPIC,2,vendoutContract);
+            mqttProducer.send(TopicConfig.VMS_VEND_OUT_TOPIC, 2, vendoutContract);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
@@ -106,21 +124,22 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
 
     /**
      * 填充订单信息
+     *
      * @param payVO 前端支付对象
      * @return 订单对象
      */
     private OrderEntity fillOrderInfo(PayVO payVO) {
         OrderEntity orderEntity = new OrderEntity();
-        orderEntity.setOrderNo(payVO.getInnerCode()+System.nanoTime());
+        orderEntity.setOrderNo(payVO.getInnerCode() + System.nanoTime());
         orderEntity.setInnerCode(payVO.getInnerCode());
 
         VmVO vmInfo = vmService.getVMInfo(payVO.getInnerCode());
-        BeanUtils.copyProperties(vmInfo,orderEntity);
+        BeanUtils.copyProperties(vmInfo, orderEntity);
         orderEntity.setAddr(vmInfo.getNodeAddr());
 
         orderEntity.setSkuId(Long.valueOf(payVO.getSkuId()));
         SkuVO sku = vmService.getSku(payVO.getSkuId());
-        BeanUtils.copyProperties(sku,orderEntity);
+        BeanUtils.copyProperties(sku, orderEntity);
 
         orderEntity.setStatus(VMSystem.ORDER_STATUS_CREATE);
         orderEntity.setAmount(sku.getPrice());
