@@ -98,7 +98,28 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         redisTemplate.boundValueOps(
                 VMSystem.VM_LOCK_KEY_PREF + payVO.getInnerCode() + "_" + payVO.getSkuId())
                 .set(lockContext.getSession(), Duration.ofSeconds(60));
-        return fillOrderInfo(payVO);
+        //5min之后,如果用户没有支付,将订单状态改为无效状态
+        //初始化订单
+        OrderEntity orderEntity = fillOrderInfo(payVO);
+        //发送延迟消息实现
+        sendDelayedMsg(orderEntity);
+        return orderEntity;
+    }
+
+    /**
+     * 发送订单延迟消息
+     * @param orderEntity 订单对象
+     */
+    private void sendDelayedMsg(OrderEntity orderEntity) {
+        try {
+            OrderCheck orderCheck = new OrderCheck();
+            orderCheck.setInnerCode(orderEntity.getInnerCode());
+            orderCheck.setOrderNo(orderEntity.getOrderNo());
+            //设置过期时间为60s
+            mqttProducer.send("$delayed/60/"+TopicConfig.ORDER_CHECK_TOPIC,2,orderCheck);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
