@@ -10,6 +10,7 @@ import com.lkd.service.RoleService;
 import com.lkd.service.UserService;
 import com.lkd.vo.Pager;
 import com.lkd.vo.UserVO;
+import com.lkd.vo.UserWorkVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,7 +48,9 @@ public class UserController {
     @GetMapping("/{id}")
     public UserVO findById(@PathVariable Integer id){
         UserEntity userEntity = userService.getById(id);
-        if(userEntity == null) return null;
+        if(userEntity == null) {
+            return null;
+        }
 
         return convertToVM(userEntity);
     }
@@ -232,7 +235,9 @@ public class UserController {
     @GetMapping("/operatorList/{innerCode}")
     public List<UserVO> getOperatorListByInnerCode(@PathVariable String innerCode){
         var vm = vmService.getVMInfo(innerCode);
-        if(vm == null) return null;
+        if(vm == null){
+            return null;
+        }
 
         return userService.getOperatorList(vm.getRegionId());
     }
@@ -245,7 +250,9 @@ public class UserController {
     @GetMapping("/repairerList/{innerCode}")
     public List<UserVO> getRepairerListByInnerCode(@PathVariable String innerCode){
         var vm = vmService.getVMInfo(innerCode);
-        if(vm == null) return null;
+        if(vm == null) {
+            return null;
+        }
         return userService.getRepairerList(vm.getRegionId());
     }
 
@@ -279,5 +286,23 @@ public class UserController {
         userVO.setImage(userEntity.getImage());
 
         return userVO;
+    }
+
+    /**
+     * 搜索用户工作量列表
+     * @param pageIndex
+     * @param pageSize
+     * @param userName
+     * @param roleId
+     * @return
+     */
+    @GetMapping("/searchUserWork")
+    public Pager<UserWorkVO> searchUserWork(
+            @RequestParam(value = "pageIndex",required = false,defaultValue = "1") long pageIndex,
+            @RequestParam(value = "pageSize",required = false,defaultValue = "10") long pageSize,
+            @RequestParam(value = "userName",required = false,defaultValue = "") String userName,
+            @RequestParam(value = "roleId",required = false,defaultValue = "0") Integer roleId,
+            @RequestParam(value = "isRepair",required = false,defaultValue = "") Boolean isRepair){
+        return userService.searchUserWork(pageIndex,pageSize,userName,roleId,isRepair) ;
     }
 }

@@ -1,8 +1,10 @@
 package com.lkd.http.controller;
+import com.lkd.entity.OrderCollectEntity;
 import com.lkd.service.ESOrderService;
 import com.lkd.service.OrderCollectService;
 import com.lkd.service.OrderService;
 import com.lkd.vo.BarCharVO;
+import com.lkd.vo.Pager;
 import com.lkd.vo.SkuRetVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -97,4 +99,36 @@ public class ReportController {
             @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate end){
         return orderService.getSkuTop(num, start,end);
     }
+    /**
+     * 分成金额统计
+     * @param start
+     * @param end
+     * @return
+     */
+    @GetMapping("/totalBill")
+    public int totalBill(@RequestParam(value = "start",required = true,defaultValue = "") @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime start,
+                         @RequestParam(value = "end",required = true,defaultValue = "") @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime end){
+        return orderCollectService.totalBill(start,end);
+    }
+
+    /**
+     * 获取一定日期范围之内的合作商分成汇总数据
+     * @param pageIndex
+     * @param pageSize
+     * @param partnerName
+     * @param start
+     * @param end
+     * @return
+     */
+    @GetMapping("/partnerCollect")
+    public Pager<OrderCollectEntity> getPartnerCollect(
+            @RequestParam(value = "pageIndex",required = false,defaultValue = "1") Long pageIndex,
+            @RequestParam(value = "pageSize",required = false,defaultValue = "10") Long pageSize,
+            @RequestParam(value = "partnerName",required = false,defaultValue = "") String partnerName,
+            @RequestParam(value = "start",required = true,defaultValue = "") @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate start,
+            @RequestParam(value = "end",required = true,defaultValue = "") @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate end
+    ){
+        return orderCollectService.getPartnerCollect(pageIndex,pageSize,partnerName,start,end);
+    }
+
 }

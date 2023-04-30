@@ -3,6 +3,7 @@ package com.lkd.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.lkd.entity.OrderCollectEntity;
 import com.lkd.vo.BarCharVO;
+import com.lkd.vo.Pager;
 
 import java.text.ParseException;
 import java.time.LocalDate;
@@ -33,6 +34,24 @@ public interface OrderCollectService extends IService<OrderCollectEntity> {
      * @return
      */
     int orderAmount(LocalDateTime start, LocalDateTime end);
+    /**
+     * 分成金额统计
+     * @param start
+     * @param end
+     * @return
+     */
+    int totalBill(LocalDateTime start, LocalDateTime end);
+
+    /**
+     * 获取合作商分账汇总信息
+     * @param pageIndex
+     * @param pageSize
+     * @param name
+     * @param start
+     * @param end
+     * @return
+     */
+    Pager<OrderCollectEntity> getPartnerCollect(Long pageIndex, Long pageSize, String name, LocalDate start, LocalDate end);
 
 //    /**
 //     * 获取某一公司在一定时间内的销售数据

@@ -20,15 +20,13 @@ import com.lkd.entity.TaskStatusTypeEntity;
 import com.lkd.exception.LogicException;
 import com.lkd.feign.UserService;
 import com.lkd.feign.VMService;
-import com.lkd.http.vo.CancelTaskViewModel;
-import com.lkd.http.vo.TaskDetailsViewModel;
-import com.lkd.http.vo.TaskReportInfoVO;
-import com.lkd.http.vo.TaskViewModel;
+import com.lkd.http.vo.*;
 import com.lkd.service.TaskDetailsService;
 import com.lkd.service.TaskService;
 import com.lkd.service.TaskStatusTypeService;
 import com.lkd.vo.Pager;
 import com.lkd.vo.UserVO;
+import com.lkd.vo.UserWorkVO;
 import com.lkd.vo.VmVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -41,6 +39,7 @@ import org.springframework.util.CollectionUtils;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -491,6 +490,104 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao, TaskEntity> implements
             qw.ne(TaskEntity::getProductTypeId,VMSystem.TASK_TYPE_SUPPLY);
         }else{
             qw.eq(TaskEntity::getProductTypeId,VMSystem.TASK_TYPE_SUPPLY);
+        }
+        return this.count(qw);
+    }
+
+    @Override
+    public List<UserWorkVO> getUserWorkTop10(LocalDate start, LocalDate end, Boolean isRepair, Long regionId) {
+        var qw = new QueryWrapper<TaskEntity>();
+        qw
+                .select("count(user_id) as user_id,user_name")
+                .lambda()
+                .ge(TaskEntity::getUpdateTime,start)
+                .lt(TaskEntity::getUpdateTime,end.plusDays(1))
+                .eq(TaskEntity::getTaskStatus,VMSystem.TASK_STATUS_FINISH)
+                .groupBy(TaskEntity::getUserName)
+                .orderByDesc(TaskEntity::getUserId)
+                .last("limit 10");
+        if(regionId >0){
+            qw.lambda().eq(TaskEntity::getRegionId,regionId);
+        }
+        if(isRepair){
+            qw.lambda().ne(TaskEntity::getProductTypeId,VMSystem.TASK_TYPE_SUPPLY);
+        }else {
+            qw.lambda().eq(TaskEntity::getProductTypeId,VMSystem.TASK_TYPE_SUPPLY);
+        }
+        var result = this
+                .list(qw)
+                .stream()
+                .map(t->{
+                    var userWork = new UserWorkVO();
+                    userWork.setUserName(t.getUserName());
+                    userWork.setWorkCount(t.getUserId());
+                    return userWork;
+                }).collect(Collectors.toList());
+        return result;
+    }
+
+    @Override
+    public List<TaskCollectVO> getTaskReport(LocalDate start, LocalDate end) {
+        List<TaskCollectVO> taskCollectVOList=Lists.newArrayList();
+        //从开始日期到截至日期，逐条统计
+        start.datesUntil(end.plusDays(1), Period.ofDays(1))
+                .forEach(date->{
+                    var taskCollectVO=new TaskCollectVO();
+                    taskCollectVO.setCollectDate(date);
+                    taskCollectVO.setProgressCount(count(date,VMSystem.TASK_STATUS_PROGRESS )); //进行中工单数
+                    taskCollectVO.setFinishCount(count(date,VMSystem.TASK_STATUS_FINISH ));//完成工单数
+                    taskCollectVO.setCancelCount(count(date,VMSystem.TASK_STATUS_CANCEL ));//取消工单数
+                    taskCollectVOList.add(taskCollectVO);
+                });
+        return taskCollectVOList;
+    }
+
+    /**
+     * 按时间和状态进行统计
+     * @param start
+     * @param taskStatus
+     * @return
+     */
+    private int count(LocalDate start ,Integer taskStatus){
+        var qw = new LambdaQueryWrapper<TaskEntity>();
+        qw
+                .ge(TaskEntity::getUpdateTime,start)
+                .lt(TaskEntity::getUpdateTime,start.plusDays(1))
+                .eq(TaskEntity::getTaskStatus, taskStatus);
+        return this.count(qw);
+    }
+
+    @Override
+    public UserWorkVO getUserWork(Integer userId, LocalDateTime start, LocalDateTime end) {
+        var userWork = new UserWorkVO();
+        userWork.setUserId(userId);
+        //并行处理提高程序吞吐量
+        //获取用户完成工单数
+        var workCount = this.getCountByUserId(userId,VMSystem.TASK_STATUS_FINISH,start.toLocalDate(),end);
+        userWork.setWorkCount(workCount);
+        //获取工单总数
+        var total = this.getCountByUserId(userId,null,start.toLocalDate(),end);
+        userWork.setTotal(total);
+        //获取用户拒绝工单数
+        var cancelCount = this.getCountByUserId(userId,VMSystem.TASK_STATUS_CANCEL,start.toLocalDate(),end);
+        userWork.setCancelCount(cancelCount);
+        //获取进行中得工单数
+        var progressTotal = this.getCountByUserId(userId,VMSystem.TASK_STATUS_PROGRESS,start.toLocalDate(),end);
+        userWork.setProgressTotal(progressTotal);
+        return userWork;
+    }
+
+    //根据工单状态，获取用户(当月)工单数
+    private Integer getCountByUserId(Integer userId,Integer taskStatus,LocalDate start,LocalDateTime end){
+        var qw = new LambdaQueryWrapper<TaskEntity>();
+        qw
+                .ge(TaskEntity::getUpdateTime,start)
+                .le(TaskEntity::getUpdateTime,end);
+        if(taskStatus != null ){
+            qw.eq(TaskEntity::getTaskStatus,taskStatus);
+        }
+        if(userId != null) {
+            qw.eq(TaskEntity::getUserId,userId);
         }
         return this.count(qw);
     }

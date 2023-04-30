@@ -4,10 +4,13 @@ import com.lkd.entity.TaskEntity;
 import com.lkd.entity.TaskStatusTypeEntity;
 import com.lkd.exception.LogicException;
 import com.lkd.http.vo.CancelTaskViewModel;
+import com.lkd.http.vo.TaskCollectVO;
 import com.lkd.http.vo.TaskReportInfoVO;
 import com.lkd.http.vo.TaskViewModel;
 import com.lkd.vo.Pager;
+import com.lkd.vo.UserWorkVO;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -83,4 +86,30 @@ public interface TaskService extends IService<TaskEntity> {
      * @return
      */
     List<TaskReportInfoVO> getTaskReportInfo(LocalDateTime start, LocalDateTime end);
+
+    /**
+     * 获取排名前10的工作量
+     * @param start
+     * @param end
+     * @return
+     */
+    List<UserWorkVO> getUserWorkTop10(LocalDate start, LocalDate end, Boolean isRepair, Long regionId);
+
+    /**
+     * 获取工单报表
+     * @param start
+     * @param end
+     * @return
+     */
+    List<TaskCollectVO> getTaskReport(LocalDate start, LocalDate end);
+
+    /**
+     * 获取用户工作量详情
+     * @param userId
+     * @param start
+     * @param end
+     * @return
+     */
+    UserWorkVO getUserWork(Integer userId, LocalDateTime start, LocalDateTime end);
+
 }

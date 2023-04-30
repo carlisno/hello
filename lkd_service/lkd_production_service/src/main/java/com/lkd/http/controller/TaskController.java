@@ -7,11 +7,14 @@ import com.lkd.exception.LogicException;
 import com.lkd.http.vo.*;
 import com.lkd.service.*;
 import com.lkd.vo.Pager;
+import com.lkd.vo.UserWorkVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
@@ -146,4 +149,48 @@ public class TaskController extends  BaseController{
                                                     @PathVariable  @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime end){
         return taskService.getTaskReportInfo(start,end);
     }
+
+    /**
+     * 获取人员排名
+     * @param start
+     * @param end
+     * @param isRepair
+     * @return
+     */
+    @GetMapping("/userWorkTop10/{start}/{end}/{isRepair}/{regionId}")
+    public List<UserWorkVO> getUserWorkTop10(@PathVariable String start, @PathVariable String end, @PathVariable Boolean isRepair, @PathVariable String regionId){
+        return taskService.getUserWorkTop10(
+                LocalDate.parse(start, DateTimeFormatter.ISO_LOCAL_DATE),
+                LocalDate.parse(end,DateTimeFormatter.ISO_LOCAL_DATE),
+                isRepair,
+                Long.valueOf(regionId));
+    }
+
+    /**
+     * 获取工单报表
+     * @param start
+     * @param end
+     * @return
+     */
+    @GetMapping("/collectReport/{start}/{end}")
+    public List<TaskCollectVO> getTaskCollectReport(@PathVariable String start,@PathVariable String end){
+        return taskService.getTaskReport(
+                LocalDate.parse(start, DateTimeFormatter.ISO_LOCAL_DATE),
+                LocalDate.parse(end,DateTimeFormatter.ISO_LOCAL_DATE));
+    }
+
+    /**
+     * 获取用户工作量详情
+     * @param userId
+     * @param start
+     * @param end
+     * @return
+     */
+    @GetMapping("/userWork")
+    public UserWorkVO getUserWork(@RequestParam Integer userId,
+                                  @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")  LocalDateTime start,
+                                  @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")  LocalDateTime end){
+        return taskService.getUserWork(userId,start,end);
+    }
+
 }

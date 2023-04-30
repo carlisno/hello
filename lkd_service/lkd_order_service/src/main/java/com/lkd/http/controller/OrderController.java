@@ -4,7 +4,10 @@ import com.github.wxpay.plus.WxPayParam;
 import com.github.wxpay.plus.WxPayTemplate;
 import com.lkd.common.VMSystem;
 import com.lkd.entity.OrderEntity;
+import com.lkd.service.ESOrderService;
 import com.lkd.service.OrderService;
+import com.lkd.vo.OrderVO;
+import com.lkd.vo.Pager;
 import com.lkd.vo.PayVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +26,8 @@ public class OrderController {
     private OrderService orderService;
     @Autowired
     private WxPayTemplate wxPayTemplate;
+    @Autowired
+    private ESOrderService esOrderService;
 
     @PostMapping("weixinPay")
     public Map<String,String> weixinPay(@RequestBody PayVO payVO){
@@ -67,5 +72,25 @@ public class OrderController {
         }catch (Exception e){
             log.error("支付回调处理失败",e);
         }
+    }
+    /**
+     * 订单查询
+     * @param pageIndex
+     * @param pageSize
+     * @param orderNo
+     * @param openId
+     * @param startDate
+     * @param endDate
+     * @return
+     */
+    @GetMapping("/search")
+    public Pager<OrderVO> search(
+            @RequestParam(value = "pageIndex",required = false,defaultValue = "1") Integer pageIndex,
+            @RequestParam(value = "pageSize",required = false,defaultValue = "10") Integer pageSize,
+            @RequestParam(value = "orderNo",required = false,defaultValue = "") String orderNo,
+            @RequestParam(value = "openId",required = false,defaultValue = "") String openId,
+            @RequestParam(value = "startDate",required = false,defaultValue = "") String startDate,
+            @RequestParam(value = "endDate",required = false,defaultValue = "") String endDate){
+        return esOrderService.search(pageIndex,pageSize,orderNo,openId,startDate,endDate);
     }
 }

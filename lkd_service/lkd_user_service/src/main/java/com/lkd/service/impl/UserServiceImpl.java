@@ -20,15 +20,18 @@ import com.lkd.utils.BCrypt;
 import com.lkd.utils.JWTUtil;
 import com.lkd.vo.Pager;
 import com.lkd.vo.UserVO;
+import com.lkd.vo.UserWorkVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
+import com.lkd.feign.TaskService;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -284,6 +287,36 @@ public class UserServiceImpl extends ServiceImpl<UserDao,UserEntity> implements 
 
         //3.组装返回数据
         return okResp( userEntity,VMSystem.LOGIN_EMP );
+    }
+
+    @Autowired
+    private TaskService taskService;
+
+    @Override
+    public Pager<UserWorkVO> searchUserWork(Long pageIndex, Long pageSize, String userName, Integer roleId, Boolean isRepair) {
+        //查询用户分页
+        var userPager= this.findPage(pageIndex,pageSize,userName,roleId,isRepair);
+        //工作量列表
+        var items =userPager.getCurrentPageRecords()
+                .stream().map( u->{
+                    LocalDateTime now = LocalDateTime.now();
+                    LocalDateTime start=  LocalDateTime.of( now.getYear(),now.getMonth(),1,0,0 ,0);
+                    var userWork=taskService.getUserWork(u.getId(),
+                            start.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss" )),
+                            now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss" ))    );
+                    userWork.setUserName( u.getUserName() );
+                    userWork.setRoleName( u.getRole().getRoleName() );
+                    userWork.setMobile( u.getMobile());
+                    return userWork;
+                }  ).collect(Collectors.toList());
+        //封装分页对象
+        Pager<UserWorkVO> result= Pager.buildEmpty();
+        result.setPageIndex( userPager.getPageIndex() );
+        result.setPageSize(userPager.getPageSize());
+        result.setTotalCount( userPager.getTotalCount());
+        result.setTotalPage( userPager.getTotalPage() );
+        result.setCurrentPageRecords( items );
+        return result;
     }
 
 }
