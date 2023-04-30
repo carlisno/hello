@@ -4,9 +4,11 @@ import com.lkd.entity.TaskEntity;
 import com.lkd.entity.TaskStatusTypeEntity;
 import com.lkd.exception.LogicException;
 import com.lkd.http.vo.CancelTaskViewModel;
+import com.lkd.http.vo.TaskReportInfoVO;
 import com.lkd.http.vo.TaskViewModel;
 import com.lkd.vo.Pager;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -75,4 +77,10 @@ public interface TaskService extends IService<TaskEntity> {
      * @return 用户id if get nothing,return null
      */
     Integer getLeastUser(Long region,Boolean isSupply);
+
+    /**
+     * 获取工单的统计情况
+     * @return
+     */
+    List<TaskReportInfoVO> getTaskReportInfo(LocalDateTime start, LocalDateTime end);
 }

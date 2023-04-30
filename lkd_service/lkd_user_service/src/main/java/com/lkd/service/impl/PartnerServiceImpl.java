@@ -144,4 +144,9 @@ public class PartnerServiceImpl extends ServiceImpl<PartnerDao, PartnerEntity> i
 
         return this.update(uw);
     }
+
+    @Override
+    public Integer partnerCount() {
+        return this.count();
+    }
 }

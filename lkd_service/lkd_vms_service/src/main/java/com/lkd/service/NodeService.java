@@ -3,6 +3,7 @@ package com.lkd.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.lkd.entity.NodeEntity;
 import com.lkd.entity.VendingMachineEntity;
+import com.lkd.vo.NodeRetVo;
 import com.lkd.vo.Pager;
 
 import java.util.List;
@@ -28,6 +29,8 @@ public interface NodeService extends IService<NodeEntity> {
      */
     List<VendingMachineEntity> getVmList(long id);
 
+    List<NodeRetVo> nodeCollect();
 
+    Integer nodeCount();
 
 }

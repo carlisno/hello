@@ -2,8 +2,11 @@ package com.lkd.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.lkd.entity.OrderCollectEntity;
+import com.lkd.vo.BarCharVO;
 
+import java.text.ParseException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface OrderCollectService extends IService<OrderCollectEntity> {
@@ -14,6 +17,22 @@ public interface OrderCollectService extends IService<OrderCollectEntity> {
      * @return
      */
     List<OrderCollectEntity> getOwnerCollectByDate(Integer ownerId,LocalDate start,LocalDate end);
+
+    /**
+     * 订单数统计
+     * @param start
+     * @param end
+     * @return
+     */
+    int orderCount(LocalDateTime start, LocalDateTime end);
+
+    /**
+     * 订金额统计
+     * @param start
+     * @param end
+     * @return
+     */
+    int orderAmount(LocalDateTime start, LocalDateTime end);
 
 //    /**
 //     * 获取某一公司在一定时间内的销售数据

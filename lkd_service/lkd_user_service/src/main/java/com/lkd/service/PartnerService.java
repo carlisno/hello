@@ -57,4 +57,6 @@ public interface PartnerService extends IService<PartnerEntity> {
      * @return
      */
     Boolean updatePwd(Integer id,PartnerUpdatePwdReq req);
+
+    Integer partnerCount();
 }

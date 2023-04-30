@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.lkd.common.VMSystem;
 import com.lkd.config.TopicConfig;
 import com.lkd.contract.SupplyChannel;
@@ -21,6 +22,7 @@ import com.lkd.feign.UserService;
 import com.lkd.feign.VMService;
 import com.lkd.http.vo.CancelTaskViewModel;
 import com.lkd.http.vo.TaskDetailsViewModel;
+import com.lkd.http.vo.TaskReportInfoVO;
 import com.lkd.http.vo.TaskViewModel;
 import com.lkd.service.TaskDetailsService;
 import com.lkd.service.TaskService;
@@ -38,6 +40,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -147,7 +150,7 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao, TaskEntity> implements
         }
 
         //5.把用户人(执行人)的分数加1
-        updateZSetScore(user,1);
+        updateZSetScore(user, 1);
         return Boolean.TRUE;
     }
 
@@ -200,21 +203,22 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao, TaskEntity> implements
 
         //把用户人(执行人)的分数加1
         UserVO user = userService.getUser(taskEntity.getUserId());
-        updateZSetScore(user,-1);
+        updateZSetScore(user, -1);
         return Boolean.TRUE;
     }
 
     /**
      * 更新分数
-     * @param user 用户信息
+     *
+     * @param user  用户信息
      * @param score 操作的分数
      */
-    private void updateZSetScore(UserVO user,Integer score) {
+    private void updateZSetScore(UserVO user, Integer score) {
         String redisKey = VMSystem.REGION_TASK_KEY_PREF
                 + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
                 + "." + user.getRegionId()
                 + "." + user.getRoleCode();
-        redisTemplate.opsForZSet().incrementScore(redisKey,user.getUserId(),score);
+        redisTemplate.opsForZSet().incrementScore(redisKey, user.getUserId(), score);
     }
 
     /**
@@ -247,20 +251,21 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao, TaskEntity> implements
         if (Objects.equals(byId.getProductTypeId(), VMSystem.TASK_TYPE_SUPPLY)) {
             sendCompleteSupplyTaskMsg(taskId, byId);
         }
-        
+
         return Boolean.TRUE;
     }
 
     /**
      * 获取最少工单用户
+     *
      * @param region 区域id
+     * @return 用户id  get nothing,return null
      * @Parm isSupply ture 运营工单 false 运维工单
-     * @return 用户id if get nothing,return null
      */
     @Override
-    public Integer getLeastUser(Long region,Boolean isSupply) {
-        String roleCode =VMSystem.USER_OPS_ROLE;
-        if (!isSupply){
+    public Integer getLeastUser(Long region, Boolean isSupply) {
+        String roleCode = VMSystem.USER_OPS_ROLE;
+        if (!isSupply) {
             roleCode = VMSystem.USER_SUPPLY_ROLE;
         }
 
@@ -270,7 +275,7 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao, TaskEntity> implements
                 + "." + roleCode;
         //范围
         Set<Object> range = redisTemplate.opsForZSet().range(redisKey, 0, 0);
-        if (CollectionUtils.isEmpty(range)){
+        if (CollectionUtils.isEmpty(range)) {
             return null;
         }
         return (Integer) new ArrayList<>(range).get(0);
@@ -278,8 +283,9 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao, TaskEntity> implements
 
     /**
      * 发送补货数据
+     *
      * @param taskId 工单Id
-     * @param byId 工单对象
+     * @param byId   工单对象
      */
     private void sendCompleteSupplyTaskMsg(long taskId, TaskEntity byId) {
         try {
@@ -421,4 +427,71 @@ public class TaskServiceImpl extends ServiceImpl<TaskDao, TaskEntity> implements
         return date + Strings.padStart(redisTemplate.opsForValue().increment(key, 1).toString(), 4, '0');
     }
 
+    @Override
+    public List<TaskReportInfoVO> getTaskReportInfo(LocalDateTime start, LocalDateTime end) {
+
+        //运营工单总数total
+        var supplyTotal = this.taskCount(start, end, false, null);
+        //运维工单总数
+        var repairTotal = this.taskCount(start, end, true, null);
+        //完成的运营工单总数
+        var completedSupply = this.taskCount(start, end, false, VMSystem.TASK_STATUS_FINISH);
+        //完成的运维工单总数
+        var completedRepair = this.taskCount(start, end, true, VMSystem.TASK_STATUS_FINISH);
+        //拒绝掉的运营工单总数
+        var cancelSupply = this.taskCount(start, end, false, VMSystem.TASK_STATUS_CANCEL);
+        //拒绝掉的运维工单总数
+        var cancelRepair = this.taskCount(start, end, true, VMSystem.TASK_STATUS_CANCEL);
+        // 获取运营人员数量
+        var operatorCount = userService.getOperatorCount();
+        //获取运维人员总数
+        var repairerCount = userService.getRepairerCount();
+
+        List<TaskReportInfoVO> result = Lists.newArrayList();
+
+        //运营人员
+        var supplyTaskInfo = new TaskReportInfoVO();
+        supplyTaskInfo.setTotal(supplyTotal);
+        supplyTaskInfo.setCancelTotal(cancelSupply);
+        supplyTaskInfo.setCompletedTotal(completedSupply);
+        supplyTaskInfo.setRepair(false);
+        supplyTaskInfo.setWorkerCount(operatorCount);
+        result.add(supplyTaskInfo);
+
+        //运维人员
+        var repairTaskInfo = new TaskReportInfoVO();
+        repairTaskInfo.setTotal(repairTotal);
+        repairTaskInfo.setCancelTotal(cancelRepair);
+        repairTaskInfo.setCompletedTotal(completedRepair);
+        repairTaskInfo.setRepair(true);
+        repairTaskInfo.setWorkerCount(repairerCount);
+        result.add(repairTaskInfo);
+        return result;
+    }
+
+
+    /**
+     * 统计工单数量
+     *
+     * @param start
+     * @param end
+     * @param repair     是否是运维工单
+     * @param taskStatus
+     * @return
+     */
+    private int taskCount(LocalDateTime start, LocalDateTime end , Boolean repair , Integer taskStatus ){
+        LambdaQueryWrapper<TaskEntity> qw = new LambdaQueryWrapper<>();
+        qw.ge(TaskEntity::getUpdateTime,start)
+                .le(TaskEntity::getUpdateTime,end);
+        //按工单状态查询
+        if(taskStatus!=null){
+            qw.eq(TaskEntity::getTaskStatus,taskStatus);
+        }
+        if(repair){//如果是运维工单
+            qw.ne(TaskEntity::getProductTypeId,VMSystem.TASK_TYPE_SUPPLY);
+        }else{
+            qw.eq(TaskEntity::getProductTypeId,VMSystem.TASK_TYPE_SUPPLY);
+        }
+        return this.count(qw);
+    }
 }

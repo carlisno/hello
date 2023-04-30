@@ -13,7 +13,9 @@ import com.lkd.contract.OrderCheck;
 import com.lkd.contract.VendoutContract;
 import com.lkd.contract.VendoutData;
 import com.lkd.dao.OrderDao;
+import com.lkd.entity.OrderReportVo;
 import com.lkd.feign.UserService;
+import com.lkd.utils.DateUtil;
 import com.lkd.vo.*;
 import com.lkd.emq.MqttProducer;
 import com.lkd.entity.OrderEntity;
@@ -48,10 +50,14 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.ParseException;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -68,6 +74,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
     private ConsulConfig consulConfig;
     @Autowired
     private RedisTemplate redisTemplate;
+    @Autowired
+    private OrderDao orderDao;
 
     @Override
     public OrderEntity getByOrderNo(String orderNo) {
@@ -179,4 +187,36 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
         return orderEntity;
     }
 
+    @Override
+    public BarCharVO getAmountCollect(String type, LocalDate start, LocalDate end) throws ParseException {
+        List<OrderReportVo> list = null;
+        List<String> monthDates = null;
+        if("1".equals(type)){
+            list = orderDao.getAmountCollect(start, end);
+            monthDates = DateUtil.findDates(start.toString(), end.toString());
+        }else if("2".equals(type)){
+            list = orderDao.getAmountCollectByMonth(start, end);
+            monthDates = DateUtil.findMonthDates(start.toString(), end.toString());
+        }
+        Map<String, Integer> finalAmountCollect = new HashMap<>();
+        for (OrderReportVo orderReportVo : list) {
+            finalAmountCollect.put(orderReportVo.getDd(),orderReportVo.getAmount());
+        }
+        var result = new BarCharVO();
+        result.getXAxis().addAll(monthDates);
+        for (String monthDate : monthDates) {
+            if(finalAmountCollect.containsKey(monthDate)){
+                result.getSeries().add(finalAmountCollect.get(monthDate));
+            }else {
+                result.getSeries().add(0);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public List<SkuRetVO> getSkuTop(Integer num, LocalDate start, LocalDate end) {
+        List<SkuRetVO> skuRetVO = orderDao.getSkuRetVO(num, start, end);
+        return skuRetVO;
+    }
 }

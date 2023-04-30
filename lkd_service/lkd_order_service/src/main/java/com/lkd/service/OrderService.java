@@ -1,11 +1,11 @@
 package com.lkd.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.lkd.vo.PayVO;
+import com.lkd.vo.*;
 import com.lkd.entity.OrderEntity;
-import com.lkd.vo.OrderVO;
-import com.lkd.vo.Pager;
 
+import java.text.ParseException;
+import java.time.LocalDate;
 import java.util.List;
 
 public interface OrderService extends IService<OrderEntity> {
@@ -30,4 +30,14 @@ public interface OrderService extends IService<OrderEntity> {
      * @param orderEntity 订单对象
      */
     void vendOut(OrderEntity orderEntity);
+
+    /**
+     * 获取销售额统计
+     * @param start
+     * @param end
+     * @return
+     */
+    BarCharVO getAmountCollect(String type, LocalDate start, LocalDate end) throws ParseException;
+
+    List<SkuRetVO> getSkuTop(Integer num, LocalDate start, LocalDate end);
 }

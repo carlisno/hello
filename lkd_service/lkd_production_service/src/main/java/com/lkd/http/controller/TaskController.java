@@ -8,8 +8,10 @@ import com.lkd.http.vo.*;
 import com.lkd.service.*;
 import com.lkd.vo.Pager;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -132,5 +134,16 @@ public class TaskController extends  BaseController{
     @GetMapping("complete/{taskId}")
     public Boolean complete(@PathVariable long taskId){
         return taskService.complete(taskId,getUserId());
+    }
+
+
+    /**
+     * 获取当时工单汇总信息
+     * @return
+     */
+    @GetMapping("/taskReportInfo/{start}/{end}")
+    public List<TaskReportInfoVO> getTaskReportInfo(@PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime start,
+                                                    @PathVariable  @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime end){
+        return taskService.getTaskReportInfo(start,end);
     }
 }

@@ -4,6 +4,7 @@ import com.lkd.entity.VendingMachineEntity;
 import com.lkd.exception.LogicException;
 import com.lkd.http.vo.NodeReq;
 import com.lkd.service.NodeService;
+import com.lkd.vo.NodeRetVo;
 import com.lkd.vo.Pager;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -111,6 +112,20 @@ public class NodeController {
         return nodeService.getVmList(nodeId);
     }
 
+    /**
+     * 合作商点位汇总统计
+     */
+    @GetMapping("/nodeCollect")
+    public List<NodeRetVo> nodeCollect(){
+        return nodeService.nodeCollect();
+    }
 
+    /**
+     * 获取点位总数
+     */
+    @GetMapping("/count")
+    public Integer nodeCount(){
+        return nodeService.nodeCount();
+    }
 
 }

@@ -106,4 +106,12 @@ public class PartnerController {
     public Boolean modifyPwd(@PathVariable Integer id,@RequestBody PartnerUpdatePwdReq req){
         return partnerService.updatePwd(id,req);
     }
+
+    /**
+     * 获取合作商总数
+     */
+    @GetMapping("count")
+    public Integer partnerCount(){
+        return partnerService.partnerCount();
+    }
 }

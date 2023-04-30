@@ -9,11 +9,13 @@ import com.lkd.entity.NodeEntity;
 import com.lkd.entity.VendingMachineEntity;
 import com.lkd.service.NodeService;
 import com.lkd.service.VendingMachineService;
+import com.lkd.vo.NodeRetVo;
 import com.lkd.vo.Pager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class NodeServiceImpl  extends ServiceImpl<NodeDao, NodeEntity> implements NodeService{
@@ -44,7 +46,34 @@ public class NodeServiceImpl  extends ServiceImpl<NodeDao, NodeEntity> implement
         return vmService.list(qw);
     }
 
+    @Override
+    public List<NodeRetVo> nodeCollect() {
+        var qw = new QueryWrapper<NodeEntity>();
+        qw
+                .select("count(*) as create_user_id ,owner_id,  owner_name")
+                .lambda()
+                .groupBy(NodeEntity::getOwnerId)
+                .groupBy(NodeEntity::getOwnerName)
+                .orderByDesc(NodeEntity::getCreateUserId)
+                .last("limit 10");
+        var result = this
+                .list(qw)
+                .stream()
+                .map(t->{
+                    var nodeRetVo = new NodeRetVo();
+                    nodeRetVo.setName(t.getOwnerName());
+                    nodeRetVo.setValue((int)t.getCreateUserId());
+                    return nodeRetVo;
+                }).collect(Collectors.toList());
 
+        return result;
+    }
+
+    @Override
+    public Integer nodeCount() {
+        int count = this.count();
+        return count;
+    }
 
 
 }
