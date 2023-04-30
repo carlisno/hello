@@ -131,4 +131,56 @@ public class ReportController {
         return orderCollectService.getPartnerCollect(pageIndex,pageSize,partnerName,start,end);
     }
 
+    /**
+     * 获取合作商一定日期范围的收益情况
+     * @param partnerId
+     * @param start
+     * @param end
+     * @return
+     */
+    @GetMapping("/collectReport/{partnerId}/{start}/{end}")
+    public BarCharVO getCollectReport(@PathVariable Integer partnerId,
+                                      @PathVariable  @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate start,
+                                      @PathVariable  @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate end){
+
+        return orderCollectService.getCollect(partnerId,start,end);
+    }
+
+    /**
+     * 获取最近12条分账信息
+     * @param partnerId
+     * @return
+     */
+    @GetMapping("/top12Collect/{partnerId}")
+    public List<OrderCollectEntity> getTop12Collect(@PathVariable Integer partnerId){
+        return orderCollectService.getTop12(partnerId);
+    }
+
+    /**
+     * 合作商搜索分账信息
+     * @param partnerId
+     * @param pageIndex
+     * @param pageSize
+     * @param nodeName
+     * @param start
+     * @param end
+     * @return
+     */
+    @GetMapping("/search/{partnerId}")
+    public Pager<OrderCollectEntity> search(
+            @PathVariable Integer partnerId,
+            @RequestParam(value = "pageIndex",required = false,defaultValue = "1") Long pageIndex,
+            @RequestParam(value = "pageSize",required = false,defaultValue = "10") Long pageSize,
+            @RequestParam(value = "nodeName",required = false,defaultValue = "") String nodeName,
+            @RequestParam(value = "start",required = true,defaultValue = "") @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate start,
+            @RequestParam(value = "end",required = true,defaultValue = "") @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate end){
+        return orderCollectService.search(
+                pageIndex,
+                pageSize,
+                partnerId,
+                nodeName,
+                start,
+                end);
+    }
+
 }
