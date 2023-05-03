@@ -1,12 +1,13 @@
 package com.lkd.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.lkd.contract.SupplyContract;
-import com.lkd.contract.VendoutContract;
-import com.lkd.contract.VendoutResultContract;
+import com.lkd.contract.*;
+import com.lkd.entity.ChannelEntity;
 import com.lkd.entity.VendingMachineEntity;
 
 import com.lkd.http.vo.CreateVMReq;
+import com.lkd.viewmodel.SkuViewModel;
+import com.lkd.viewmodel.VMDistance;
 import com.lkd.vo.Pager;
 import com.lkd.vo.SkuVO;
 import com.lkd.vo.VmVO;
@@ -104,4 +105,30 @@ public interface VendingMachineService extends IService<VendingMachineEntity> {
      * @param vendoutContract 通知出货协议
      */
     void vendOut(VendoutContract vendoutContract);
+
+
+    /**
+     * 获取售货机里所有商品
+     * @param innerCode
+     * @return
+     */
+    List<SkuViewModel> getSkuList(String innerCode);
+    /**
+     * 获取售货机所有货道
+     * @param innerCode
+     * @return
+     */
+    List<ChannelEntity> getAllChannel(String innerCode);
+
+    /**
+     * 出货结果处理
+     * @param vendoutResp
+     * @return
+     */
+    boolean vendOutResult(VendoutResp vendoutResp);
+
+
+
+
+
 }

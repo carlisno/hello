@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.*;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -21,7 +21,7 @@ public class VendingMachineEntity extends AbstractEntity implements Serializable
     @TableField(value = "node_id")
     private Long nodeId;//点位Id
     @TableField(value = "vm_status")
-    private Integer vmStatus;//售货机状态，0:未投放;1-运营;2-故障,3-撤机
+    private Integer vmStatus;//售货机状态，0:未投放;1-运营;3-撤机
     @TableField(value = "last_supply_time")
     private LocalDateTime lastSupplyTime;//上次补货时间
     @TableField(value = "city_code")
@@ -62,11 +62,13 @@ public class VendingMachineEntity extends AbstractEntity implements Serializable
      */
     @TableField(value = "region_id")
     private Long regionId;
-
     @TableField(exist = false)
-    private VmTypeEntity type;//售货机类型
+    private VmTypeEntity type;
     @TableField(exist = false)
-    private NodeEntity node;//点位
+    private NodeEntity node;
+    /**
+     * 设备区域
+     */
     @TableField(exist = false)
-    private RegionEntity region;//区域
+    private RegionEntity region;
 }

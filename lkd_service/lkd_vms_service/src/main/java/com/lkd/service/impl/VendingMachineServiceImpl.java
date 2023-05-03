@@ -12,10 +12,8 @@ import com.lkd.common.VMSystem;
 
 import com.lkd.config.ConsulConfig;
 import com.lkd.config.TopicConfig;
-import com.lkd.contract.SupplyChannel;
-import com.lkd.contract.SupplyContract;
+import com.lkd.contract.*;
 
-import com.lkd.contract.VendoutContract;
 import com.lkd.dao.VendingMachineDao;
 
 import com.lkd.emq.MqttProducer;
@@ -26,19 +24,25 @@ import com.lkd.service.*;
 
 import com.lkd.utils.DistributedLock;
 import com.lkd.utils.UUIDUtils;
+import com.lkd.viewmodel.SkuViewModel;
+import com.lkd.viewmodel.VMDistance;
 import com.lkd.vo.Pager;
 import com.lkd.vo.SkuVO;
 import com.lkd.vo.VmVO;
 import lombok.extern.slf4j.Slf4j;
+import org.elasticsearch.action.index.IndexRequest;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.util.CollectionUtils;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -207,14 +211,14 @@ public class VendingMachineServiceImpl extends ServiceImpl<VendingMachineDao, Ve
                         ChannelEntity::getSku,
                         Collectors.summingInt(ChannelEntity::getCurrentCapacity)));//对库存数求和
         return skuMap.entrySet().stream().map(entry -> {
-            SkuEntity sku = entry.getKey(); //查询商品
-            SkuVO skuVO = new SkuVO();
-            BeanUtils.copyProperties(sku, skuVO);
-            skuVO.setImage(sku.getSkuImage());//图片
-            skuVO.setCapacity(entry.getValue());
-            skuVO.setRealPrice(sku.getPrice());//真实价格
-            return skuVO;
-        }).sorted(Comparator.comparing(SkuVO::getCapacity).reversed())  //按库存量降序排序
+                    SkuEntity sku = entry.getKey(); //查询商品
+                    SkuVO skuVO = new SkuVO();
+                    BeanUtils.copyProperties(sku, skuVO);
+                    skuVO.setImage(sku.getSkuImage());//图片
+                    skuVO.setCapacity(entry.getValue());
+                    skuVO.setRealPrice(sku.getPrice());//真实价格
+                    return skuVO;
+                }).sorted(Comparator.comparing(SkuVO::getCapacity).reversed())  //按库存量降序排序
                 .collect(Collectors.toList());
     }
 
@@ -266,7 +270,6 @@ public class VendingMachineServiceImpl extends ServiceImpl<VendingMachineDao, Ve
                 channelService.updateById(each);
             }
         });
-
     }
 
     @Override
@@ -349,5 +352,120 @@ public class VendingMachineServiceImpl extends ServiceImpl<VendingMachineDao, Ve
         //todo:发出信息给具体的售货机
     }
 
+    @Override
+    public List<SkuViewModel> getSkuList(String innerCode) {
+
+        //货道查询
+        List<ChannelEntity> channelList = this.getAllChannel(innerCode)
+                .stream()
+                .filter(c -> c.getSkuId() > 0 && c.getSku() != null)
+                .collect(Collectors.toList());
+
+        //获取商品库存余量
+
+        Map<SkuEntity, Integer> skuMap = channelList.stream().collect(Collectors.groupingBy(ChannelEntity::getSku, Collectors.summingInt(ChannelEntity::getCurrentCapacity)));
+
+        //商品价格表  map   key  商品id
+        Map<Long, IntSummaryStatistics> skuPrice =
+                channelList.stream().collect(Collectors.groupingBy(ChannelEntity::getSkuId, Collectors.summarizingInt(ChannelEntity::getPrice)));
+
+        return skuMap.entrySet().stream().map(entry -> {
+                    SkuEntity sku = entry.getKey();
+                    sku.setRealPrice(skuPrice.get(sku.getSkuId()).getMin());//真实价格
+                    SkuViewModel skuViewModel = new SkuViewModel();
+                    BeanUtils.copyProperties(sku, skuViewModel);
+                    skuViewModel.setImage(sku.getSkuImage());
+                    skuViewModel.setCapacity(entry.getValue());//库存数
+                    return skuViewModel;
+                }).sorted(Comparator.comparing(SkuViewModel::getCapacity).reversed())
+                .collect(Collectors.toList());
+
+    }
+
+    @Override
+    public List<ChannelEntity> getAllChannel(String innerCode) {
+        return channelService.getChannelesByInnerCode(innerCode);
+    }
+    @Autowired
+    private VendoutRunningService vendoutRunningService;
+
+    @Transactional
+    public boolean vendOutResult(VendoutResp vendoutResp) {
+        try {
+            String key = "vmService.outResult." + vendoutResp.getVendoutResult().getOrderNo();
+
+            //对结果做校验，防止重复上传(从redis校验)
+            Object redisValue = redisTemplate.opsForValue().get(key);
+            redisTemplate.delete(key);
+
+            if (redisValue != null) {
+                log.info("出货重复上传");
+                return false;
+            }
+
+
+            //存入出货流水数据
+            VendoutRunningEntity vendoutRunningEntity = new VendoutRunningEntity();
+            vendoutRunningEntity.setInnerCode(vendoutResp.getInnerCode());
+            vendoutRunningEntity.setOrderNo(vendoutResp.getVendoutResult().getOrderNo());
+            vendoutRunningEntity.setStatus(vendoutResp.getVendoutResult().isSuccess());
+            vendoutRunningEntity.setPrice(vendoutResp.getVendoutResult().getPrice());
+            vendoutRunningEntity.setSkuId(vendoutResp.getVendoutResult().getSkuId());
+            vendoutRunningService.save(vendoutRunningEntity);
+
+
+            //存入redis
+            redisTemplate.opsForValue().set(key, key);
+            redisTemplate.expire(key, 7, TimeUnit.DAYS);
+
+            //减货道库存
+            ChannelEntity channel = channelService.getChannelInfo(vendoutResp.getInnerCode(), vendoutResp.getVendoutResult().getChannelId());
+            int currentCapacity = channel.getCurrentCapacity() - 1;
+            if (currentCapacity < 0) {
+                log.info("缺货");
+                notifyGoodsStatus(vendoutResp.getInnerCode(), true);
+
+                return true;
+            }
+
+            channel.setCurrentCapacity(currentCapacity);
+            channelService.updateById(channel);
+        } catch (Exception e) {
+            log.error("update vendout result error.", e);
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 发送缺货告警信息
+     *
+     * @param innerCode
+     * @param isFault   true--缺货状态;false--不缺货状态
+     */
+    private void notifyGoodsStatus(String innerCode, boolean isFault) {
+        VmStatusContract contract = new VmStatusContract();
+        contract.setNeedResp(false);
+        contract.setSn(0);
+        contract.setInnerCode(innerCode);
+
+        StatusInfo statusInfo = new StatusInfo();
+        statusInfo.setStatus(isFault);
+        statusInfo.setStatusCode("10003");
+        List<StatusInfo> statusInfos = Lists.newArrayList();
+        statusInfos.add(statusInfo);
+        contract.setStatusInfo(statusInfos);
+
+        try {
+            //  发送设备不缺货消息(置设备为不缺货)
+            mqttProducer.send(TopicConfig.VM_STATUS_TOPIC, 2, contract);
+        } catch (JsonProcessingException e) {
+            log.error("serialize error.", e);
+
+        }
+    }
 
 }

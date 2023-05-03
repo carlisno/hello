@@ -50,5 +50,13 @@ public interface ChannelService extends IService<ChannelEntity> {
 
 
 
+    /**
+     * 获取售货机中商品的真实售价
+     * @param innerCode
+     * @param skuId
+     * @return
+     */
+    Integer getRealPrice(String innerCode,Long skuId);
+
 
 }

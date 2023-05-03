@@ -31,4 +31,29 @@ public class SkuEntity extends AbstractEntity implements Serializable{
     @TableField(exist = false)
     private SkuClassEntity skuClass;//商品类别
 
+    /**
+     * 商品真实售价
+     */
+    @TableField(exist = false)
+    private Integer realPrice;
+    @Override
+    public boolean equals(final Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        final SkuEntity sku = (SkuEntity) obj;
+        if (this == sku) {
+            return true;
+        } else {
+            return this.skuId.equals(sku.skuId);
+        }
+    }
+    @Override
+    public int hashCode() {
+        int hashno = 7;
+        hashno = 13 * hashno + (skuId == null ? 0 : skuId.hashCode());
+
+        return hashno;
+    }
+
 }

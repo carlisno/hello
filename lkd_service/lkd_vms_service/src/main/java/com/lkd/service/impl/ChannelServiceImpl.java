@@ -6,9 +6,11 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.lkd.dao.ChannelDao;
 import com.lkd.entity.ChannelEntity;
 import com.lkd.entity.SkuEntity;
+import com.lkd.entity.VmPolicyEntity;
 import com.lkd.exception.LogicException;
 import com.lkd.http.vo.VMChannelConfig;
 import com.lkd.service.ChannelService;
+import com.lkd.service.PolicyService;
 import com.lkd.service.SkuService;
 import com.lkd.vo.Pager;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +23,10 @@ import java.util.Map;
 @Service
 public class ChannelServiceImpl extends ServiceImpl<ChannelDao,ChannelEntity> implements ChannelService{
 
+    @Autowired
+    private PolicyService policyService;
+    @Autowired
+    private SkuService skuService;
 
     @Override
     public Pager<ChannelEntity> findPage(long pageIndex, long pageSize, Map searchMap) {
@@ -75,9 +81,6 @@ public class ChannelServiceImpl extends ServiceImpl<ChannelDao,ChannelEntity> im
         return queryWrapper;
     }
 
-    @Autowired
-    private SkuService skuService;
-
     /**
      * 设置商品
      * @param innerCode
@@ -111,6 +114,20 @@ public class ChannelServiceImpl extends ServiceImpl<ChannelDao,ChannelEntity> im
         channelConfig.getChannelList().forEach(c->
                 configSku(channelConfig.getInnerCode(),c.getChannelCode(),Long.valueOf(c.getSkuId())));
         return true;
+    }
+
+    @Override
+    public Integer getRealPrice(String innerCode, Long skuId) {
+        LambdaQueryWrapper<ChannelEntity> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper
+                .eq(ChannelEntity::getInnerCode,innerCode)
+                .eq(ChannelEntity::getSkuId,skuId);
+        List<ChannelEntity> channelList = this.list(queryWrapper);
+        if(channelList == null || channelList.size() <=0){
+            return 0;
+        }
+
+        return channelList.stream().findFirst().get().getPrice();
     }
 
 

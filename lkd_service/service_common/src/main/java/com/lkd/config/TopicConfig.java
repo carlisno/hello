@@ -50,7 +50,15 @@ public class TopicConfig {
      * 延迟订单主题
      */
     public final static String ORDER_CHECK_TOPIC = "server/order/check";
+    /**
+     * 下发消息到售货机的主题  vm/tovm/售货机编号
+     */
+    public final static String TO_VM_TOPIC = "vm/tovm/";
 
+    /**
+     *  设备状态消息
+     */
+    public final static String VM_STATUS_TOPIC = "server/status";
 
 
 }
