@@ -1,6 +1,8 @@
 package com.lkd.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.lkd.viewmodel.OrderViewModel;
+import com.lkd.viewmodel.Pager;
 import com.lkd.vo.*;
 import com.lkd.entity.OrderEntity;
 
@@ -40,4 +42,16 @@ public interface OrderService extends IService<OrderEntity> {
     BarCharVO getAmountCollect(String type, LocalDate start, LocalDate end) throws ParseException;
 
     List<SkuRetVO> getSkuTop(Integer num, LocalDate start, LocalDate end);
+
+    /**
+     * 订单搜索
+     * @param pageIndex
+     * @param pageSize
+     * @param orderNo
+     * @param openId
+     * @param startDate
+     * @param endDate
+     * @return
+     */
+    Pager<OrderViewModel> search(Integer pageIndex, Integer pageSize, String orderNo, String openId, String startDate, String endDate);
 }

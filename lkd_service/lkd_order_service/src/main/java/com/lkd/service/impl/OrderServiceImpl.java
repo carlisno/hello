@@ -16,6 +16,8 @@ import com.lkd.dao.OrderDao;
 import com.lkd.entity.OrderReportVo;
 import com.lkd.feign.UserService;
 import com.lkd.utils.DateUtil;
+import com.lkd.viewmodel.OrderViewModel;
+import com.lkd.viewmodel.Pager;
 import com.lkd.vo.*;
 import com.lkd.emq.MqttProducer;
 import com.lkd.entity.OrderEntity;
@@ -76,6 +78,9 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
     private RedisTemplate redisTemplate;
     @Autowired
     private OrderDao orderDao;
+
+    @Autowired
+    private RestHighLevelClient esClient;
 
     @Override
     public OrderEntity getByOrderNo(String orderNo) {
@@ -218,5 +223,90 @@ public class OrderServiceImpl extends ServiceImpl<OrderDao, OrderEntity> impleme
     public List<SkuRetVO> getSkuTop(Integer num, LocalDate start, LocalDate end) {
         List<SkuRetVO> skuRetVO = orderDao.getSkuRetVO(num, start, end);
         return skuRetVO;
+    }
+    @Override
+    public com.lkd.viewmodel.Pager<OrderViewModel> search(Integer pageIndex, Integer pageSize, String orderNo, String openId, String startDate, String endDate) {
+
+        //1.封装查询条件
+
+        SearchRequest searchRequest=new SearchRequest("order");
+        SearchSourceBuilder sourceBuilder =new SearchSourceBuilder();
+
+        BoolQueryBuilder boolQueryBuilder= QueryBuilders.boolQuery();
+        //订单号查询
+        if(!Strings.isNullOrEmpty(orderNo)){
+            boolQueryBuilder.must(  QueryBuilders.termQuery("order_no",orderNo)  );
+        }
+        //根据openId查询
+        if(!Strings.isNullOrEmpty(openId)){
+            boolQueryBuilder.must(  QueryBuilders.termQuery("open_id",openId)  );
+        }
+        //时间范围查询
+        if(!Strings.isNullOrEmpty( startDate ) &&  !Strings.isNullOrEmpty(endDate) ){
+            RangeQueryBuilder rangeQueryBuilder = QueryBuilders.rangeQuery("update_time");
+            rangeQueryBuilder.gte(startDate );
+            rangeQueryBuilder.lte(endDate);
+        }
+
+        sourceBuilder.from((pageIndex-1)* pageSize);
+        sourceBuilder.size(pageSize);
+
+        sourceBuilder.trackTotalHits(true);
+        sourceBuilder.query(boolQueryBuilder);
+        searchRequest.source(sourceBuilder);
+
+        //2.封装查询结果
+
+        try {
+            SearchResponse searchResponse = esClient.search(searchRequest, RequestOptions.DEFAULT);
+            SearchHits hits = searchResponse.getHits();
+            SearchHit[] searchHits = hits.getHits();
+
+            List<OrderViewModel> orderList=Lists.newArrayList();
+
+            for(SearchHit hit:searchHits){
+
+                String hitResult = hit.getSourceAsString();
+                OrderViewModel order=new OrderViewModel();
+
+                JsonNode jsonNode = JsonUtil.getTreeNode(hitResult);
+                order.setId(jsonNode.findPath("id").asLong());
+                order.setStatus(jsonNode.findPath("status").asInt());
+                order.setBill(jsonNode.findPath("bill").asInt());
+                order.setOwnerId(jsonNode.findPath("owner_id").asInt());
+                order.setPayType(jsonNode.findPath("pay_type").asText());
+                order.setOrderNo(jsonNode.findPath("order_no").asText());
+                order.setInnerCode(jsonNode.findPath("inner_code").asText());
+                order.setSkuName(jsonNode.findPath("sku_name").asText());
+                order.setSkuId(jsonNode.findPath("sku_id").asLong());
+                order.setPayStatus(jsonNode.findPath("pay_status").asInt());
+                order.setBusinessName(jsonNode.findPath("business_name").asText());
+                order.setBusinessId(jsonNode.findPath("business_id").asInt());
+                order.setRegionId(jsonNode.findPath("region_id").asLong());
+                order.setRegionName(jsonNode.findPath("region_name").asText());
+                order.setPrice(jsonNode.findPath("price").asInt());
+                order.setAmount(jsonNode.findPath("amount").asInt());
+                order.setAddr(jsonNode.findPath("addr").asText());
+                order.setOpenId(jsonNode.findPath("open_id").asText());
+
+                order.setCreateTime(  LocalDateTime.parse( jsonNode.findPath("create_time").asText(),DateTimeFormatter.ISO_DATE_TIME ) );
+                order.setUpdateTime(  LocalDateTime.parse( jsonNode.findPath("update_time").asText(),DateTimeFormatter.ISO_DATE_TIME ));
+
+                orderList.add(order);
+            }
+
+            com.lkd.viewmodel.Pager<OrderViewModel> pager=new com.lkd.viewmodel.Pager<>();
+            pager.setCurrentPageRecords(orderList);
+            pager.setTotalCount( hits.getTotalHits().value );
+            pager.setPageSize( searchHits.length );
+            pager.setPageIndex(pageIndex);
+            return  pager;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            return Pager.buildEmpty();
+
+        }
+
     }
 }
